@@ -173,6 +173,13 @@ public static class OperationsEndpoints
         var actor = sessions.RequireUser(context);
         var kind = request.Kind is null ? null : ParseFinanceKind(request.Kind);
         var date = request.Date is null ? null : RequireDate(request.Date, "Ngày thu chi");
+        // Validate before changing the live in-memory entry. A rejected edit
+        // must not change its kind/category and leak into a later save.
+        if (request.Amount is <= 0)
+        {
+            throw new ApiException(400, "Số tiền thu chi phải lớn hơn 0.", "invalid_finance_amount");
+        }
+
         var dto = store.Write(data =>
         {
             var entry = FindFinanceEntry(data, id);
@@ -197,14 +204,6 @@ public static class OperationsEndpoints
 
             if (request.Amount is not null)
             {
-                if (request.Amount.Value <= 0)
-                {
-                    throw new ApiException(
-                        400,
-                        entry.Kind == FinanceEntryKinds.Income ? "Số tiền thu phải lớn hơn 0." : "Số tiền chi phải lớn hơn 0.",
-                        "invalid_finance_amount");
-                }
-
                 entry.Amount = ApiMappings.RoundMoney(request.Amount.Value);
                 changes.Add($"Số tiền: {FormatMoney(entry.Amount)}");
             }

@@ -35,6 +35,35 @@ Tài khoản quản trị mặc định: `admin` · mật khẩu `studio2026`.
 
 > Hãy đổi mật khẩu này ngay trong **Cài đặt studio → Tài khoản studio** trước khi đưa ứng dụng lên mạng. Xem phần [Bảo mật](#bảo-mật).
 
+## Thu chi, xuất Excel và tên studio
+
+Trong **Tài chính & lương → Thu chi**, bạn có thể tạo, sửa hoặc xoá khoản
+thu/chi theo tháng; lọc **Tất cả / Thu / Chi**; nhập ghi chú và gắn tối đa
+6 ảnh chứng từ cho mỗi khoản. Mỗi ảnh JPG/PNG/WebP tối đa 5 MB và có chú
+thích riêng. Có thể sửa chú thích hoặc bỏ ảnh trong biểu mẫu chỉnh sửa.
+Nếu tải ảnh lỗi giữa chừng, giữ biểu mẫu và bấm lưu để thử lại các ảnh còn
+lại; các khoản và ảnh đã lưu thành công không được gửi lại.
+
+- **Thu chi → Xuất Excel**: xuất tháng và bộ lọc đang chọn, kèm ghi chú,
+  tên ảnh/chú thích và tổng thu, tổng chi, chênh lệch. Ảnh không được nhúng
+  vào tệp Excel.
+- **Tài chính & lương → Tổng quan / Bảng lương → Xuất Excel**: tải workbook
+  gồm ba sheet Tổng quan, Bảng lương và Thu chi của tháng đang chọn.
+- **Hợp đồng → Xuất Excel**: xuất danh sách theo trạng thái và từ khoá hiện tại.
+- **Cài đặt studio → Thông tin studio**: đổi tên studio và lưu. Tên mới có
+  hiệu lực ngay trong phiên hiện tại và vẫn giữ khi tải lại trang.
+
+Thu nhập ghi tay được tính là **Thu khác**, tách khỏi thanh toán đơn hàng
+và hợp đồng; tránh ghi lại cùng một khoản thanh toán ở cả hai nơi. Các khoản
+chi cũ được giữ nguyên là khoản chi khi nâng cấp dữ liệu lên schema 8.
+
+Ảnh chứng từ nằm trong `data/finance-photos/` và chỉ người có quyền tài chính
+mới truy cập được. Khi sao lưu hoặc chuyển máy chủ, giữ **cả thư mục dữ liệu**,
+bao gồm `store.json` và `finance-photos/`.
+
+Xem [kiểm thử tài chính](tests/README.md) để chạy lại kiểm thử API và trình duyệt
+trên dữ liệu thử riêng.
+
 ## Kết nối Google Drive
 
 Ứng dụng dùng Google Drive API v3 với một API key, chỉ đọc được các thư mục được chia sẻ công khai.

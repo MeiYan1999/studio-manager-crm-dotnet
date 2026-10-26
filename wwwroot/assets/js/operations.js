@@ -522,8 +522,10 @@ export function financeView({ session }) {
 
   function openEntryForm(entry = null) {
     const isEdit = Boolean(entry);
+    let savedEntryId = entry?.id || null;
+    let saving = false;
     let selectedKind = entry?.kind === 'income' ? 'income' : 'expense';
-    let existingPhotos = entry ? (entry.photos || []).slice() : [];
+    let existingPhotos = (entry?.photos || []).map(photo => ({ ...photo }));
     const removedPhotoIds = new Set();
     const pendingFiles = [];
     const previewUrls = new Map();
@@ -583,7 +585,10 @@ export function financeView({ session }) {
           </div>
         </form>
       </div>
-    `, { className: 'dialog--crm' });
+    `, {
+      className: 'dialog--crm',
+      onClose: () => previewUrls.forEach(url => URL.revokeObjectURL(url))
+    });
 
     const form = modal.dialog.querySelector('[data-finance-form]');
     const categoryInput = form.elements.namedItem('category');
@@ -710,6 +715,7 @@ export function financeView({ session }) {
 
     form.addEventListener('submit', async event => {
       event.preventDefault();
+      if (saving) return;
       clearFieldErrors(form);
       const errorRoot = form.querySelector('[data-form-error]');
       errorRoot.innerHTML = '';
@@ -734,18 +740,24 @@ export function financeView({ session }) {
         note: form.elements.namedItem('note').value.trim()
       };
       const submit = form.querySelector('[data-submit]');
+      saving = true;
+      form.inert = true;
       setButtonLoading(submit, true, 'Đang lưu…');
       let saved;
       try {
-        if (isEdit) {
+        if (savedEntryId) {
           payload.photos = existingPhotos
             .filter(photo => !removedPhotoIds.has(photo.id))
             .map(photo => ({ id: photo.id, caption: photo.caption || '' }));
-          saved = await operationsApi.updateFinanceEntry(entry.id, payload);
+          saved = await operationsApi.updateFinanceEntry(savedEntryId, payload);
         } else {
           saved = await operationsApi.createFinanceEntry(payload);
         }
+        savedEntryId = saved.id;
+        existingPhotos = saved.photos.map(photo => ({ ...photo }));
       } catch (error) {
+        saving = false;
+        form.inert = false;
         if (error.name === 'AbortError') return;
         setButtonLoading(submit, false);
         errorRoot.innerHTML = errorInline(error.message || 'Chưa lưu được khoản thu chi.', error.code);
@@ -753,23 +765,30 @@ export function financeView({ session }) {
       }
 
       let uploadFailed = false;
-      const entryId = saved?.id || entry?.id;
+      const entryId = savedEntryId;
       try {
-        if (isEdit) {
-          for (const photoId of removedPhotoIds) {
-            await operationsApi.deleteFinancePhoto(entryId, photoId);
-          }
+        for (const photoId of [...removedPhotoIds]) {
+          await operationsApi.deleteFinancePhoto(entryId, photoId);
+          removedPhotoIds.delete(photoId);
+          existingPhotos = existingPhotos.filter(photo => photo.id !== photoId);
         }
-        for (const item of pendingFiles) {
-          await operationsApi.uploadFinancePhoto(entryId, item.file, item.caption);
+        while (pendingFiles.length) {
+          const item = pendingFiles[0];
+          const photo = await operationsApi.uploadFinancePhoto(entryId, item.file, item.caption);
+          existingPhotos.push(photo);
+          pendingFiles.shift();
+          URL.revokeObjectURL(item.preview);
+          previewUrls.delete(item.id);
         }
       } catch (error) {
         uploadFailed = true;
         errorRoot.innerHTML = errorInline(error.message || 'Khoản đã lưu nhưng ảnh chưa tải lên được.', error.code);
       }
 
-      previewUrls.forEach(url => URL.revokeObjectURL(url));
+      saving = false;
+      form.inert = false;
       if (uploadFailed) {
+        renderPhotos();
         setButtonLoading(submit, false);
         showToast('Đã lưu khoản thu chi, nhưng một số ảnh chưa tải lên được.', 'error');
         load();

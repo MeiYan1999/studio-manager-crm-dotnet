@@ -3414,7 +3414,7 @@ export function settingsView({ session }) {
           paint();
           const preview = root.querySelector('[data-studio-name-preview]');
           if (preview) preview.textContent = result.studioName;
-          showToast(`Đã đổi tên studio thành “${result.studioName}”.`, 'success');
+          showToast(`Đã lưu cài đặt studio “${result.studioName}”.`, 'success');
         } catch (error) {
           if (disposed || error.name === 'AbortError') return;
           setButtonLoading(submit, false);

@@ -72,6 +72,7 @@ public sealed class DataStore
         else
         {
             _data = DemoAlbums.Create();
+            Migrate(_data, AdminCode);
             Normalize(_data, AdminCode);
             SaveLocked();
             _logger.LogInformation("Đã tạo dữ liệu mẫu tại {Path}", _storePath);
