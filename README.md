@@ -22,6 +22,17 @@ dotnet run
 
 Mở http://localhost:5080.
 
+## Đưa lên Render
+
+Repository có sẵn `Dockerfile` và `render.yaml`. Trên Render, chọn **New → Blueprint**,
+kết nối repository này và nhập một mật khẩu mạnh cho biến bí mật `AdminCode`.
+Blueprint tạo web service cùng persistent disk tại `/var/data`, nhờ đó dữ liệu CRM và
+ảnh đính kèm không mất khi dịch vụ được triển khai lại.
+
+Sau khi deploy xong, mở địa chỉ Render cấp và đăng nhập bằng tài khoản `admin` cùng
+mật khẩu đã nhập ở `AdminCode`. Đổi mật khẩu trong **Cài đặt studio → Tài khoản studio**
+ngay sau lần đăng nhập đầu tiên.
+
 Lần chạy đầu tiên, ứng dụng sẽ tạo `data/store.json` và nạp hai album mẫu:
 
 | Album | Liên kết |

@@ -1,0 +1,20 @@
+services:
+  - type: web
+    name: studio-manager-crm-dotnet
+    runtime: docker
+    plan: starter
+    healthCheckPath: /api/health
+    autoDeployTrigger: commit
+    envVars:
+      - key: ASPNETCORE_ENVIRONMENT
+        value: Production
+      - key: ASPNETCORE_URLS
+        value: http://0.0.0.0:10000
+      - key: Data__Directory
+        value: /var/data
+      - key: AdminCode
+        sync: false
+    disk:
+      name: crm-data
+      mountPath: /var/data
+      sizeGB: 1
