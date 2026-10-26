@@ -26,8 +26,13 @@ Mở http://localhost:5080.
 
 Repository có sẵn `Dockerfile` và `render.yaml`. Trên Render, chọn **New → Blueprint**,
 kết nối repository này và nhập một mật khẩu mạnh cho biến bí mật `AdminCode`.
-Blueprint tạo web service cùng persistent disk tại `/var/data`, nhờ đó dữ liệu CRM và
-ảnh đính kèm không mất khi dịch vụ được triển khai lại.
+Blueprint tạo web service và PostgreSQL. Ảnh chứng từ được lưu trong object storage
+tương thích S3 như Cloudflare R2; Render sẽ yêu cầu các thông tin bucket khi tạo Blueprint.
+
+Với Cloudflare R2, tạo một bucket riêng tư và một API token có quyền **Object Read & Write**
+cho đúng bucket đó. Điền endpoint dạng `https://<ACCOUNT_ID>.r2.cloudflarestorage.com`,
+tên bucket, Access Key ID và Secret Access Key vào các biến Render tương ứng. Không bật
+Public Development URL; ứng dụng đọc ảnh qua API đã xác thực.
 
 Sau khi deploy xong, mở địa chỉ Render cấp và đăng nhập bằng tài khoản `admin` cùng
 mật khẩu đã nhập ở `AdminCode`. Đổi mật khẩu trong **Cài đặt studio → Tài khoản studio**
@@ -203,6 +208,12 @@ Các giá trị chính trong `appsettings.json`:
 | `AdminCode` | `studio2026` | Mật khẩu khởi tạo cho tài khoản quản trị `admin` khi dữ liệu chưa có tài khoản |
 | `GoogleDrive:ApiKey` | rỗng | API key Google Drive |
 | `Data:Directory` | `data` | Thư mục chứa `store.json` |
+| `ConnectionStrings:Postgres` | rỗng | Chuỗi kết nối PostgreSQL; khi có giá trị, PostgreSQL thay cho `store.json` |
+| `Storage:Provider` | `local` | Đặt `s3` để lưu ảnh chứng từ trong object storage |
+| `Storage:Endpoint` | rỗng | S3 endpoint, ví dụ endpoint bucket Cloudflare R2 |
+| `Storage:Bucket` | rỗng | Tên bucket riêng tư |
+| `Storage:AccessKey` | rỗng | Access key của bucket |
+| `Storage:SecretKey` | rỗng | Secret key của bucket |
 
 `AdminCode` chỉ được dùng để tạo tài khoản quản trị đầu tiên. Sau khi dữ liệu đã có tài khoản, đổi biến này không đổi mật khẩu đang dùng; hãy đặt lại mật khẩu trong **Cài đặt studio → Tài khoản studio**.
 
@@ -221,6 +232,11 @@ dotnet run
 ```
 
 ## Dữ liệu
+
+Khi `ConnectionStrings:Postgres` hoặc `DATABASE_URL` có giá trị, ứng dụng tự tạo bảng
+`app_state` và lưu trạng thái CRM dưới dạng `jsonb`. Nếu PostgreSQL đang trống nhưng
+`data/store.json` tồn tại, ứng dụng tự nhập tệp đó ở lần khởi động đầu tiên. Khi chưa cấu
+hình PostgreSQL, chế độ local bên dưới vẫn hoạt động như trước.
 
 - Toàn bộ dữ liệu nằm trong `data/store.json`, gồm album, cài đặt studio, tài khoản và bảng công việc.
 - Tệp dùng `schemaVersion` 3. Khi mở dữ liệu phiên bản 1 hoặc 2, ứng dụng tự nâng cấp, thêm bảng mẫu hoặc tài khoản quản trị ban đầu và giữ nguyên album, thẻ, lựa chọn cùng cài đặt hiện có. Nhật ký của thẻ cũ bắt đầu trống.

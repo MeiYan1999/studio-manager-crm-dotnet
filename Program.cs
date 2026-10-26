@@ -14,6 +14,7 @@ builder.Services.ConfigureHttpJsonOptions(options =>
 });
 
 builder.Services.AddSingleton<DataStore>();
+builder.Services.AddSingleton<IObjectStorage, ObjectStorage>();
 builder.Services.AddSingleton<AdminSessionStore>();
 builder.Services.AddSingleton<GoogleDriveService>();
 builder.Services.AddHttpClient("drive", client =>
