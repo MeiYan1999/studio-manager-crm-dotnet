@@ -20,6 +20,7 @@ public sealed class ObjectStorage : IObjectStorage, IDisposable
     private readonly string _localDirectory;
     private readonly string _bucket;
     private readonly AmazonS3Client? _s3;
+    private readonly bool _disablePayloadSigning;
     private readonly ILogger<ObjectStorage> _logger;
 
     public ObjectStorage(IConfiguration configuration, DataStore store, ILogger<ObjectStorage> logger)
@@ -50,6 +51,7 @@ public sealed class ObjectStorage : IObjectStorage, IDisposable
                 AuthenticationRegion = configuration["Storage:Region"]?.Trim() ?? "auto",
                 SignatureVersion = "4"
             };
+            _disablePayloadSigning = endpoint.StartsWith("https://", StringComparison.OrdinalIgnoreCase);
             _s3 = new AmazonS3Client(new BasicAWSCredentials(accessKey, secretKey), config);
             _logger.LogInformation("Ảnh chứng từ dùng object storage bucket {Bucket}.", _bucket);
         }
@@ -82,7 +84,7 @@ public sealed class ObjectStorage : IObjectStorage, IDisposable
                 AutoCloseStream = false,
                 // S3-compatible providers may not support AWS streaming chunk signatures.
                 UseChunkEncoding = false,
-                DisablePayloadSigning = true
+                DisablePayloadSigning = _disablePayloadSigning
             }, cancellationToken);
         }
         catch (AmazonS3Exception exception)

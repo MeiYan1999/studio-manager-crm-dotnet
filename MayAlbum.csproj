@@ -14,7 +14,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="AWSSDK.S3" Version="4.0.104.7" />
+    <PackageReference Include="AWSSDK.S3" Version="3.7.414.2" />
     <PackageReference Include="Npgsql" Version="8.0.6" />
   </ItemGroup>
 
