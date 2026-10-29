@@ -250,3 +250,72 @@ body.page-landing {
     width: 100%;
   }
 }
+
+/* Concept discovery and read-only public galleries. */
+.page-landing .concept-section {
+  position: relative;
+  width: min(1240px, 100%);
+  padding: 80px 32px 100px;
+}
+.concept-anchor { position: absolute; top: 0; }
+.concept-section__heading { margin-bottom: 52px; text-align: center; }
+.concept-section__heading .eyebrow { justify-content: center; }
+.concept-section__heading h2 { margin-top: 14px; font-size: clamp(32px, 3.5vw, 46px); line-height: 1.35; text-transform: uppercase; }
+.concept-section__heading h2 em { font-style: italic; display: inline-block; max-width: 850px; margin-top: 6px; color: var(--ink); font-size: clamp(20px, 2.3vw, 29px); }
+.concept-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 24px; }
+.concept-card { position: relative; display: block; isolation: isolate; aspect-ratio: 3 / 4; overflow: hidden; border-radius: 14px; background: var(--concept-tone, #a9aa9b); color: #fff; }
+.concept-card::after { position: absolute; inset: 25% 0 0; z-index: -1; background: linear-gradient(transparent, rgb(18 24 18 / 80%)); content: ''; }
+.concept-card > img { position: absolute; inset: 0; z-index: -2; display: block; width: 100%; height: 100%; object-fit: cover; transition: transform .35s ease; }
+.concept-card:hover > img { transform: scale(1.035); }
+.concept-card__art { position: absolute; inset: 0; z-index: -2; display: grid; place-items: center; background: radial-gradient(ellipse at 20% 10%, rgb(255 255 255 / 34%), transparent 70%); }
+.concept-card__art .icon { width: 32%; height: 32%; opacity: .45; stroke-width: 1; }
+.concept-card__copy { position: absolute; right: 28px; bottom: 30px; left: 28px; }
+.concept-card__label { display: block; margin-bottom: 12px; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; }
+.concept-card h3 { font-family: var(--font-serif); font-weight: 500; margin: 0 0 12px; font-size: clamp(21px, 2vw, 27px); line-height: 1.25; text-transform: uppercase; }
+.concept-card__description { display: block; font-size: 12px; line-height: 1.65; }
+.concept-card__link { display: inline-flex; align-items: center; gap: 10px; margin-top: 24px; font-size: 12px; }
+.concept-card__link .icon { width: 16px; height: 16px; }
+.concept-loading { grid-column: 1 / -1; padding: 36px 16px; text-align: center; color: var(--muted); }
+.concept-nav { flex-wrap: wrap; }
+.concept-back { margin-left: auto; }
+.concept-gallery { width: min(1240px, 100%); margin: 0 auto; padding: 64px 32px 96px; }
+.concept-gallery__heading { max-width: 760px; margin: 0 auto 56px; text-align: center; }
+.concept-gallery__heading .eyebrow { justify-content: center; }
+.concept-gallery__heading h1 { margin-top: 18px; font-size: clamp(36px, 5vw, 64px); }
+.concept-gallery__heading > p:last-child { margin-top: 20px; color: var(--muted); line-height: 1.8; }
+.concept-collection + .concept-collection { margin-top: 64px; }
+.concept-collection > header { margin-bottom: 24px; }
+.concept-collection h2 { font-size: 30px; overflow-wrap: anywhere; }
+.concept-collection header p { max-width: 760px; margin: 12px 0; color: var(--muted); line-height: 1.7; white-space: pre-line; overflow-wrap: anywhere; }
+.concept-collection header span { color: var(--muted); font-size: 12px; }
+.concept-photo-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+.concept-photo { position: relative; padding: 0; aspect-ratio: 4 / 5; overflow: hidden; border: 0; border-radius: 10px; background: #f0eee8; cursor: zoom-in; }
+.concept-photo img { width: 100%; height: 100%; object-fit: cover; }
+.concept-photo > .icon { position: absolute; right: 14px; bottom: 14px; width: 36px; height: 36px; padding: 8px; border-radius: 50%; background: rgb(255 255 255 / 90%); }
+.concept-empty { padding: 60px 20px; border: 1px solid var(--line); border-radius: 14px; text-align: center; }
+.concept-empty > .icon { width: 40px; height: 40px; margin-bottom: 20px; color: var(--muted); }
+.concept-empty h2 { font-size: 28px; }
+.concept-empty p { margin: 16px 0 26px; color: var(--muted); line-height: 1.7; }
+dialog.dialog--concept { max-width: min(1100px, 96vw); width: 100%; padding: 0; border: 0; border-radius: 12px; background: #151714; color: white; }
+.concept-lightbox { position: relative; padding: 52px 20px 12px; }
+.concept-lightbox > img { display: block; width: 100%; max-height: 72dvh; object-fit: contain; }
+.concept-lightbox .dialog-close { color: #fff; background: #33382f; }
+.concept-lightbox__controls { display: flex; align-items: center; justify-content: center; gap: 28px; padding-top: 10px; font-size: 13px; }
+.concept-lightbox__controls .icon-btn { color: white; }
+@media (max-width: 920px) {
+  .concept-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; }
+  .concept-photo-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 540px) {
+  .page-landing .concept-section { padding: 60px 22px; }
+  .concept-section__heading { margin-bottom: 32px; }
+  .concept-grid { grid-template-columns: 1fr; gap: 20px; }
+  .concept-card { aspect-ratio: 4 / 5; }
+  .concept-card h3 { font-size: 28px; }
+  .concept-card__copy { right: 26px; bottom: 28px; left: 26px; }
+  .concept-gallery { padding: 40px 20px 64px; }
+  .concept-gallery__heading { margin-bottom: 36px; }
+  .concept-gallery .concept-photo-grid { gap: 10px; }
+  .concept-back { font-size: 11px; padding: 10px; }
+  .concept-lightbox { padding: 50px 8px 12px; }
+}

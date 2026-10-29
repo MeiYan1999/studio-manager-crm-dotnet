@@ -46,6 +46,10 @@ public static class PublicEndpoints
             context.Response.Headers.CacheControl = "no-cache";
             return Results.Stream(stored.Content, image.HomeImageContentType);
         });
+        app.MapGet("/api/public/concepts", (DataStore store) =>
+            Results.Ok(store.Read(ConceptShowcase.List)));
+        app.MapGet("/api/public/concepts/{category}", (string category, DataStore store) =>
+            Results.Ok(store.Read(data => ConceptShowcase.Gallery(data, category))));
         var group = app.MapGroup("/api/public/albums");
 
         group.MapGet("/{token}", (string token, DataStore store) =>

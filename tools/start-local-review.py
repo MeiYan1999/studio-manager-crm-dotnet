@@ -24,8 +24,8 @@ DLL = SOURCE / 'bin/Release/net8.0/StudioCore.dll'
 def seed(base, admin_password, employee_password):
     client = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(http.cookiejar.CookieJar()))
 
-    def post(path, body):
-        request = urllib.request.Request(base + path, data=json.dumps(body).encode(),
+    def post(path, body=None):
+        request = urllib.request.Request(base + path, data=json.dumps(body).encode() if body is not None else None,
                                          headers={'Content-Type': 'application/json'})
         try:
             with client.open(request, timeout=20) as response:
@@ -57,7 +57,10 @@ def seed(base, admin_password, employee_password):
     post('/api/admin/attendance', {'staffId': staff['id'], 'date': today.isoformat(),
          'in': '08:35', 'out': '18:20', 'note': 'Chấm công mẫu: đi muộn, về sớm'})
     post('/api/admin/outfits', {'name': 'Review — Trang phục trắng', 'size': 'M', 'color': 'Trắng', 'quantity': 2})
-    post('/api/admin/concepts', {'name': 'Review — Khu vườn', 'description': 'Concept minh họa', 'fee': 300000})
+    albums = post('/api/admin/albums')
+    source_album = next(album for album in albums if album['isPublished'] and album['photoCount'] > 0)
+    post('/api/admin/concepts', {'name': 'Review — Bộ ảnh gia đình', 'description': 'Ảnh minh họa trên dữ liệu thử riêng',
+         'fee': 300000, 'category': 'family', 'albumId': source_album['id'], 'isPublished': True})
     post('/api/admin/users', {'username': 'review-staff', 'displayName': 'Nhân viên review',
          'password': employee_password, 'role': 'employee', 'mustChangePassword': False,
          'permissions': ['dashboard', 'albums', 'board', 'tools']})

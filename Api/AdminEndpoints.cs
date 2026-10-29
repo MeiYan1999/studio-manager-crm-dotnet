@@ -460,6 +460,11 @@ public static class AdminEndpoints
             var album = FindAdminAlbum(data, id);
             var title = album.Title;
             data.Albums.Remove(album);
+            foreach (var concept in data.Concepts.Where(item => item.AlbumId == album.Id))
+            {
+                concept.AlbumId = "";
+                concept.IsPublished = false;
+            }
             foreach (var card in data.Board.Lists.SelectMany(list => list.Cards))
             {
                 if (string.Equals(card.AlbumId, album.Id, StringComparison.Ordinal))

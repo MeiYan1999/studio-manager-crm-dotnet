@@ -33,17 +33,18 @@ không kế thừa các biến môi trường database/storage liên quan. Khôn
 | Thứ tự | Trang | Thao tác review |
 |---|---|---|
 | 1 | `/` | Trang chủ, tên studio, điều hướng, bố cục desktop/điện thoại |
-| 2 | `/a/demo-ngay-chung-doi` | Xem album mẫu, chọn ảnh, tìm mã ảnh, ghi chú và gửi lựa chọn |
-| 3 | `/admin/albums` | Xem album, lựa chọn của khách, xuất CSV và tùy chọn chia sẻ |
-| 4 | `/admin/board` | Kéo thả thẻ, checklist, nhãn, hạn chót và nhật ký |
-| 5 | `/admin/customers`, `/admin/packages`, `/admin/staff` | Xem dữ liệu mẫu; thử thêm/sửa bản ghi |
-| 6 | `/admin/bookings` | Lịch chụp mẫu ngày mai/ngày kia, liên kết khách/gói/nhân sự |
-| 7 | `/admin/orders`, `/admin/contracts`, `/admin/reports` | Xem đơn/hợp đồng mẫu; thử ghi thanh toán và xuất báo cáo |
-| 8 | `/admin/finance` | Thu/chi mẫu trong tháng, thêm ảnh chứng từ, lọc và xuất Excel |
-| 9 | `/admin/attendance`, `/admin/shifts` | Chấm công mẫu muộn/về sớm; tự thử xếp ca tuần |
-| 10 | `/admin/wardrobe` | Trang phục/concept mẫu; thử lập phiếu thuê rồi trả |
-| 11 | `/admin/settings`, `/admin/audit` | Cài đặt tên/logo, tài khoản và nhật ký thay đổi |
-| 12 | Đăng xuất, đăng nhập `review-staff` | Chỉ có quyền tổng quan, album, board và công cụ lọc ảnh |
+| 2 | `/#concepts`, `/concepts/family` | Xem 5 nhóm, mở gallery thử, xem ảnh lớn và chuyển ảnh |
+| 3 | `/a/demo-ngay-chung-doi` | Xem album mẫu, chọn ảnh, tìm mã ảnh, ghi chú và gửi lựa chọn |
+| 4 | `/admin/albums` | Xem album, lựa chọn của khách, xuất CSV và tùy chọn chia sẻ |
+| 5 | `/admin/board` | Kéo thả thẻ, checklist, nhãn, hạn chót và nhật ký |
+| 6 | `/admin/customers`, `/admin/packages`, `/admin/staff` | Xem dữ liệu mẫu; thử thêm/sửa bản ghi |
+| 7 | `/admin/bookings` | Lịch chụp mẫu ngày mai/ngày kia, liên kết khách/gói/nhân sự |
+| 8 | `/admin/orders`, `/admin/contracts`, `/admin/reports` | Xem đơn/hợp đồng mẫu; thử ghi thanh toán và xuất báo cáo |
+| 9 | `/admin/finance` | Thu/chi mẫu trong tháng, thêm ảnh chứng từ, lọc và xuất Excel |
+| 10 | `/admin/attendance`, `/admin/shifts` | Chấm công mẫu muộn/về sớm; tự thử xếp ca tuần |
+| 11 | `/admin/wardrobe` | Trang phục/concept mẫu; thử lập phiếu thuê rồi trả |
+| 12 | `/admin/settings`, `/admin/audit` | Cài đặt tên/logo, tài khoản và nhật ký thay đổi |
+| 13 | Đăng xuất, đăng nhập `review-staff` | Chỉ có quyền tổng quan, album, board và công cụ lọc ảnh |
 
 Công cụ lọc ảnh dùng File System Access API: chỉ thử với thư mục ảnh mẫu do bạn tự chọn;
 nó có thể sao chép file trên máy theo thao tác của bạn. Phần này cần Chrome/Edge hỗ trợ.
@@ -61,3 +62,9 @@ trình duyệt và không in mật khẩu tạm. Đây chưa phải kiểm thử
 Backend tests và CI được mô tả trong [tests/README.md](../tests/README.md).
 
 Để phản hồi, ghi trang/chức năng, thao tác thực hiện, kết quả mong muốn và kết quả thực tế.
+
+## Review gallery concept
+
+Preview nạp một concept gia đình công khai từ album demo, trên dữ liệu thử riêng. Vào
+Tủ trang phục → Concept để thử gán album, đổi nhóm và bật/tắt Hiển thị bộ ảnh trên website.
+Các nhóm chưa gán ảnh có trạng thái đang cập nhật; ảnh thật cần do studio chọn từ album của mình.

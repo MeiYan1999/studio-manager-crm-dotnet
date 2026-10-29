@@ -22,6 +22,11 @@ python3 tests/run_backend.py
 - `home_image_smoke.py`: upload/thay/reset banner, ảnh công khai và Content-Type,
   URL có version mới khi thay ảnh, giữ ảnh sau khi lưu cài đặt khác, từ chối file trống/sai
   định dạng/quá 5 MB và giữ độc lập logo/ảnh đăng nhập. Auth smoke kiểm tra employee bị chặn.
+- `concepts_smoke.py`: 5 nhóm công khai, concept mặc định ẩn, admin chọn album và bật hiển thị,
+  employee không được cấu hình công khai, payload không chứa thông tin khách hàng/token/giá,
+  sửa không hợp lệ không đổi tên, album bị ngừng chia sẻ/xóa gỡ ảnh khỏi gallery.
+- xUnit `ConceptShowcaseTests`: tương thích concept cũ, dữ liệu public tối thiểu, ẩn ảnh khi
+  nguồn bị khóa/xóa/bảo trì và kiểm tra điều kiện công khai.
 - `storage_s3_smoke.py`: upload logo/ảnh đăng nhập/ảnh trang chủ đến S3 giả lập; kiểm tra chữ ký SigV4,
   payload không chunked, lỗi nhà cung cấp được chuyển thông báo an toàn và giữ ảnh cũ khi lỗi.
 

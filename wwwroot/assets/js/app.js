@@ -1,3 +1,4 @@
+import { mountConceptCards, conceptGalleryView } from './concepts.js';
 import { api, authApi } from './api.js';
 import {
   PLACEHOLDER_IMAGE,
@@ -77,6 +78,9 @@ function parseRoute(pathname) {
   if (albumMatch) {
     return { name: 'album-detail', path, params: { id: decodeURIComponent(albumMatch[1]) } };
   }
+
+  const conceptMatch = /^\/concepts\/([^/]+)$/.exec(path);
+  if (conceptMatch) return { name: 'concept-gallery', path, params: { category: decodeURIComponent(conceptMatch[1]) } };
 
   const publicMatch = /^\/a\/([^/]+)$/.exec(path);
   if (publicMatch) {
@@ -255,6 +259,8 @@ function buildView(route) {
   switch (route.name) {
     case 'home':
       return landingView(context);
+    case 'concept-gallery':
+      return conceptGalleryView({ category: route.params.category, brand: landingBrand(), studioName: websiteSettings.studioName });
     case 'login':
       return loginView({ ...context, websiteSettings });
     case 'dashboard':
@@ -319,28 +325,35 @@ function navigate(path, options = {}) {
   render(parseRoute(target.pathname));
 }
 
+function landingBrand() {
+  const content = websiteSettings.website || {};
+  return websiteSettings.logoUrl ? `<a href="/" aria-label="${escapeAttr(websiteSettings.studioName)}"><img src="${escapeAttr(websiteSettings.logoUrl)}" alt="${escapeAttr(websiteSettings.studioName)}" style="max-width:180px;height:56px;object-fit:contain"></a>` : `<a class="wordmark" href="/" aria-label="${escapeAttr(content.brandName ?? 'StudioCore')} — trang chủ">${escapeHtml(content.brandName ?? 'StudioCore')}<span>.</span><small>${escapeHtml(content.brandLabel ?? 'album')}</small></a>`;
+}
+
 function landingView() {
   const content = websiteSettings.website || {};
   const text = (key, fallback) => escapeHtml(content[key] ?? fallback);
-  const brand = websiteSettings.logoUrl ? `<a href="/" aria-label="${escapeAttr(websiteSettings.studioName)}"><img src="${escapeAttr(websiteSettings.logoUrl)}" alt="${escapeAttr(websiteSettings.studioName)}" style="max-width:180px;height:56px;object-fit:contain"></a>` : `<a class="wordmark" href="/" aria-label="${escapeAttr(content.brandName ?? 'StudioCore')} — trang chủ">${text('brandName', 'StudioCore')}<span>.</span><small>${text('brandLabel', 'album')}</small></a>`;
+  const brand = landingBrand();
+  const conceptLabel = !content.sampleAlbumsLabel || content.sampleAlbumsLabel === 'Album mẫu' ? 'Concept' : text('sampleAlbumsLabel', 'Concept');
+  let disposeConcepts = () => {};
   const html = `
     <div class="landing">
       <header class="site-nav">
         ${brand}
         <nav class="site-nav__links" aria-label="Điều hướng chính">
           <a href="#cach-hoat-dong">${text('howItWorksLabel', 'Cách hoạt động')}</a>
-          <a href="#album-mau">${text('sampleAlbumsLabel', 'Album mẫu')}</a>
+          <a href="#concepts">${conceptLabel}</a>
           <a href="#danh-cho-studio">${text('forStudioLabel', 'Dành cho studio')}</a>
         </nav>
         <div class="site-nav__actions">
           <a class="btn btn--ghost btn--compact" href="/admin/login">${icon('lock')} Studio</a>
-          <a class="btn btn--primary btn--compact" href="/a/demo-ngay-chung-doi">${text('sampleAlbumsLabel', 'Album mẫu')} ${icon('arrowUpRight')}</a>
+          <a class="btn btn--primary btn--compact" href="#concepts">${conceptLabel} ${icon('arrowUpRight')}</a>
         </div>
         <button class="icon-btn site-nav__toggle" type="button" data-menu-toggle aria-label="Mở menu" aria-expanded="false">${icon('menu')}</button>
       </header>
       <div class="site-nav__drawer" data-mobile-menu>
         <a href="#cach-hoat-dong">${text('howItWorksLabel', 'Cách hoạt động')}</a>
-        <a href="#album-mau">${text('sampleAlbumsLabel', 'Album mẫu')}</a>
+        <a href="#concepts">${conceptLabel}</a>
         <a href="#danh-cho-studio">${text('forStudioLabel', 'Dành cho studio')}</a>
         <a href="/admin/login">Đăng nhập studio</a>
       </div>
@@ -356,7 +369,7 @@ function landingView() {
                 <span class="landing-hero__studio">${escapeHtml(websiteSettings.studioName || 'StudioCore')}</span>
                 <span class="landing-hero__moment">Lưu giữ những điều thương mến.</span>
               </div>
-              <a class="landing-hero__explore" href="#album-mau">Khám phá album ${icon('arrowDown')}</a>
+              <a class="landing-hero__explore" href="#concepts">Khám phá concept ${icon('arrowDown')}</a>
             </figcaption>
           </figure>
           <div class="landing-hero__copy">
@@ -366,7 +379,7 @@ function landingView() {
               ${text('heroDescription', 'StudioCore gom những ngày đẹp nhất vào một album riêng. Bạn chỉ cần mở liên kết, thả tim những tấm ảnh mình yêu và gửi lại cho studio.')}
             </p>
             <div class="landing-hero__actions">
-              <a class="btn btn--primary btn--lg" href="/a/demo-ngay-chung-doi">Mở album mẫu ${icon('arrowRight')}</a>
+              <a class="btn btn--primary btn--lg" href="#concepts">Khám phá concept ${icon('arrowRight')}</a>
               <a class="btn btn--text btn--lg" href="#cach-hoat-dong">Tìm hiểu cách hoạt động ${icon('arrowUpRight')}</a>
             </div>
           </div>
@@ -407,44 +420,10 @@ function landingView() {
           </div>
         </section>
 
-        <section class="landing-section landing-demos" id="album-mau">
-          <div class="section-heading section-heading--row">
-            <div>
-              <p class="eyebrow">Xem thử một album thật</p>
-              <h2>Hai câu chuyện,<br><em>hai miền ký ức.</em></h2>
-            </div>
-            <p class="section-heading__aside">Mỗi album mẫu đã có sẵn lựa chọn để bạn hình dung trải nghiệm của khách hàng.</p>
-          </div>
-          <div class="demo-grid">
-            <a class="demo-card" href="/a/demo-ngay-chung-doi">
-              <div class="demo-card__media">
-                <img src="/assets/img/demo/thumbs/06.jpg" alt="Album Ngày Mình Chung Đôi" loading="lazy">
-                <span class="demo-card__badge">20 ảnh</span>
-              </div>
-              <div class="demo-card__body">
-                <div>
-                  <p class="demo-card__kicker">Đà Lạt · 20.09.2026</p>
-                  <h3>Ngày Mình Chung Đôi</h3>
-                  <p>Linh &amp; Minh</p>
-                </div>
-                <span class="demo-card__arrow">${icon('arrowUpRight')}</span>
-              </div>
-            </a>
-            <a class="demo-card" href="/a/demo-bien-nho">
-              <div class="demo-card__media demo-card__media--sea">
-                <img src="/assets/img/demo/thumbs/07.jpg" alt="Album Biển Nhớ" loading="lazy">
-                <span class="demo-card__badge">Đã gửi lựa chọn</span>
-              </div>
-              <div class="demo-card__body">
-                <div>
-                  <p class="demo-card__kicker">Phú Quốc · 14.06.2026</p>
-                  <h3>Biển Nhớ</h3>
-                  <p>Hà &amp; Nam</p>
-                </div>
-                <span class="demo-card__arrow">${icon('arrowUpRight')}</span>
-              </div>
-            </a>
-          </div>
+        <section class="landing-section concept-section" id="concepts">
+          <span id="album-mau" class="concept-anchor" aria-hidden="true"></span>
+          <div class="concept-section__heading"><p class="eyebrow">Khám phá concept</p><h2>5 lựa chọn<br><em>Cho những khoảnh khắc bạn muốn lưu giữ</em></h2></div>
+          <div class="concept-grid" data-concept-grid aria-live="polite"><p role="status">Đang tải concept…</p></div>
         </section>
 
         <section class="landing-studio" id="danh-cho-studio">
@@ -477,8 +456,11 @@ function landingView() {
           <div class="site-footer__cols">
             <div>
               <p class="site-footer__label">Khám phá</p>
-              <a href="/a/demo-ngay-chung-doi">Ngày Mình Chung Đôi</a>
-              <a href="/a/demo-bien-nho">Biển Nhớ</a>
+              <a href="/concepts/family">Concept gia đình</a>
+              <a href="/concepts/children">Concept trẻ em</a>
+              <a href="/concepts/newborn">Concept sơ sinh</a>
+              <a href="/concepts/maternity">Concept mẹ bầu</a>
+              <a href="/concepts/beauty">Concept beauty</a>
             </div>
             <div>
               <p class="site-footer__label">Studio</p>
@@ -500,6 +482,7 @@ function landingView() {
     bodyClass: 'page-landing',
     html,
     mount(root) {
+      disposeConcepts = mountConceptCards(root.querySelector('[data-concept-grid]'));
       const toggle = root.querySelector('[data-menu-toggle]');
       const menu = root.querySelector('[data-mobile-menu]');
       toggle?.addEventListener('click', () => {
@@ -516,6 +499,7 @@ function landingView() {
       });
     },
     cleanup() {
+      disposeConcepts();
       document.body.classList.remove('nav-open');
     }
   };

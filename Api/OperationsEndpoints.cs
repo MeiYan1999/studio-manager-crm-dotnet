@@ -1349,14 +1349,20 @@ public static class OperationsEndpoints
         AdminSessionStore sessions)
     {
         var actor = sessions.RequireUser(context);
+        if ((request.Category is not null || request.AlbumId is not null || request.IsPublished is not null) && !StudioAccess.IsAdmin(actor))
+            throw new ApiException(403, "Chỉ quản trị viên được cấu hình concept trên website.", "forbidden");
         var name = RequireName(request.Name, "Tên concept");
         var now = DateTimeOffset.UtcNow;
         var dto = store.Write(data =>
         {
+            var publication = ConceptShowcase.ValidatePublication(data, request.Category, request.AlbumId, request.IsPublished ?? false);
             var concept = new StudioConcept
             {
                 Id = NewShortId(),
                 Name = name,
+                Category = publication.Category,
+                AlbumId = publication.AlbumId,
+                IsPublished = request.IsPublished ?? false,
                 Description = AlbumText.TrimTo(request.Description, 2000),
                 Fee = Math.Max(0, ApiMappings.RoundMoney(request.Fee)),
                 Status = ConceptStatuses.Normalize(request.Status),
@@ -1385,10 +1391,16 @@ public static class OperationsEndpoints
         AdminSessionStore sessions)
     {
         var actor = sessions.RequireUser(context);
+        if ((request.Category is not null || request.AlbumId is not null || request.IsPublished is not null) && !StudioAccess.IsAdmin(actor))
+            throw new ApiException(403, "Chỉ quản trị viên được cấu hình concept trên website.", "forbidden");
         var name = request.Name is null ? null : RequireName(request.Name, "Tên concept");
         var dto = store.Write(data =>
         {
             var concept = FindConcept(data, id);
+            var publication = request.Category is not null || request.AlbumId is not null || request.IsPublished is not null
+                ? ConceptShowcase.ValidatePublication(data, request.Category ?? concept.Category,
+                    request.AlbumId ?? concept.AlbumId, request.IsPublished ?? concept.IsPublished)
+                : (concept.Category, concept.AlbumId);
             if (name is not null)
             {
                 concept.Name = name;
@@ -1409,6 +1421,9 @@ public static class OperationsEndpoints
                 concept.Status = ConceptStatuses.Normalize(request.Status);
             }
 
+            concept.Category = publication.Category;
+            concept.AlbumId = publication.AlbumId;
+            if (request.IsPublished is not null) concept.IsPublished = request.IsPublished.Value;
             concept.UpdatedAt = DateTimeOffset.UtcNow;
             StudioAudit.Add(
                 data,

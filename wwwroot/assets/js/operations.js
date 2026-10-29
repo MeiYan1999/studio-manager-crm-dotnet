@@ -1,4 +1,4 @@
-import { crmApi, operationsApi } from './api.js';
+import { api, crmApi, operationsApi } from './api.js';
 import { mountAdminShell, hasPermission } from './admin.js';
 import {
   icon,
@@ -1747,6 +1747,9 @@ export function wardrobeView({ session }) {
   let loanFilter = 'all';
   let outfits = [];
   let concepts = [];
+  let websiteAlbums = [];
+  let websiteCategories = [];
+  const canPublishConcepts = session?.user?.role === 'admin';
   let loans = [];
   let optionsPromise = null;
   let loading = false;
@@ -1828,8 +1831,10 @@ export function wardrobeView({ session }) {
             : `<span class="pill pill--live">${icon('checkCircle')}Sẵn sàng</span>`}
         </div>
         ${concept.description ? `<p class="ops-card__note">${escapeHtml(concept.description)}</p>` : ''}
+        ${canPublishConcepts ? `<p class="ops-card__note">Website: ${concept.isPublished ? 'Đã bật hiển thị' : 'Chưa công khai'}${concept.category ? ` · ${escapeHtml(websiteCategories.find(item => item.id === concept.category)?.title || concept.category)}` : ''}</p>` : ''}
         ${canManage ? `
           <div class="ops-card__actions">
+            ${canPublishConcepts && concept.isPublished && concept.category ? `<a class="btn btn--ghost btn--compact" href="/concepts/${encodeURIComponent(concept.category)}" target="_blank" rel="noopener">${icon('eye')} Xem trên website</a>` : ''}
             <button class="btn btn--ghost btn--compact" type="button" data-concept-edit="${escapeAttr(concept.id)}">${icon('edit')} Sửa</button>
             <button class="btn btn--ghost btn--compact" type="button" data-concept-delete="${escapeAttr(concept.id)}">${icon('trash')} Xoá</button>
           </div>
@@ -2020,14 +2025,18 @@ export function wardrobeView({ session }) {
     const body = document.querySelector('[data-wardrobe-body]');
     if (body) body.innerHTML = skeletonRows(4);
     try {
-      const [outfitData, conceptData, loanData] = await Promise.all([
+      const [outfitData, conceptData, loanData, albumData, categoryData] = await Promise.all([
         operationsApi.outfits(),
         operationsApi.concepts(),
-        operationsApi.loans()
+        operationsApi.loans(),
+        canPublishConcepts ? api('/api/admin/albums') : Promise.resolve([]),
+        canPublishConcepts ? api('/api/public/concepts') : Promise.resolve([])
       ]);
       if (disposed) return;
       outfits = Array.isArray(outfitData) ? outfitData : [];
       concepts = Array.isArray(conceptData) ? conceptData : [];
+      websiteAlbums = Array.isArray(albumData) ? albumData.filter(album => album.isPublished && album.photoCount > 0) : [];
+      websiteCategories = Array.isArray(categoryData) ? categoryData : [];
       loans = Array.isArray(loanData) ? loanData : [];
       render();
     } catch (error) {
@@ -2176,6 +2185,18 @@ export function wardrobeView({ session }) {
               <label for="concept-description">Mô tả</label>
               <textarea id="concept-description" name="description" maxlength="2000" rows="3" placeholder="Bối cảnh, đạo cụ, tông màu…">${escapeHtml(concept?.description || '')}</textarea>
             </div>
+            ${canPublishConcepts ? `
+            <div class="field crm-form__full">
+              <label for="concept-category">Nhóm concept trên trang chủ</label>
+              <select id="concept-category" name="category">${optionList(websiteCategories.map(item => ({ value: item.id, label: item.title })), concept?.category || '', 'Chưa phân nhóm')}</select>
+            </div>
+            <div class="field crm-form__full">
+              <label for="concept-album">Album ảnh của concept</label>
+              <select id="concept-album" name="albumId">${optionList(websiteAlbums.map(album => ({ value: album.id, label: album.title })), concept?.albumId || '', 'Chọn album đã chia sẻ và có ảnh')}</select>
+              <p class="field__hint">Tạo hoặc nhập album từ Google Drive trong mục Album trước. Ảnh bìa album sẽ dùng làm ảnh đại diện cho nhóm concept.</p>
+            </div>
+            <label class="check-field crm-form__full"><input type="checkbox" name="isPublished" ${concept?.isPublished ? 'checked' : ''}><span><strong>Hiển thị bộ ảnh trên website</strong><small>Tên, mô tả concept và ảnh trong album đã chọn sẽ được công khai cho mọi khách truy cập. Thông tin khách hàng, ghi chú và lựa chọn ảnh không được đưa vào gallery.</small></span></label>
+            ` : ''}
           </div>
           <div data-form-error></div>
           <div class="dialog-actions">
@@ -2203,6 +2224,11 @@ export function wardrobeView({ session }) {
         status: form.elements.namedItem('status').value,
         description: form.elements.namedItem('description').value.trim()
       };
+      if (canPublishConcepts) {
+        payload.category = form.elements.namedItem('category').value;
+        payload.albumId = form.elements.namedItem('albumId').value;
+        payload.isPublished = form.elements.namedItem('isPublished').checked;
+      }
       const submit = form.querySelector('[data-submit]');
       setButtonLoading(submit, true, 'Đang lưu…');
       try {

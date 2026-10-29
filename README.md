@@ -373,6 +373,30 @@ Tên service/database trong `render.yaml`, tên repository GitHub, URL Render v�
 được giữ nguyên để không tạo lại tài nguyên hoặc thay đổi cấu hình đang triển khai. Dockerfile
 đã trỏ đến `StudioCore.csproj` và `StudioCore.dll`.
 
+## Gallery ảnh theo concept
+
+Trang chủ thay hai thẻ album mẫu bằng 5 nhóm: Gia đình, Trẻ em, Sơ sinh, Mẹ bầu và Beauty.
+Bấm vào thẻ để xem các bộ ảnh trong nhóm; bấm ảnh để mở ảnh lớn, dùng nút hoặc phím
+mũi tên chuyển ảnh, Escape để đóng. Nhóm chưa có ảnh hiển thị trạng thái đang cập nhật.
+
+Cấu hình bằng tài khoản quản trị viên:
+
+1. Tạo hoặc nhập album ảnh trong **Album**, chọn ảnh bìa và bật chia sẻ album.
+2. Mở **Tủ trang phục → Concept → Thêm concept/Sửa**.
+3. Chọn **Nhóm concept trên trang chủ** và **Album ảnh của concept**.
+4. Bật **Hiển thị bộ ảnh trên website** rồi lưu. Tên, mô tả concept và ảnh trong album
+   đã chọn sẽ công khai; dữ liệu khách hàng, ghi chú, lựa chọn ảnh và mã chia sẻ không được trả trong API gallery.
+5. Bấm **Xem trên website** để kiểm tra. Bỏ chọn hiển thị để gỡ bộ ảnh khỏi gallery.
+
+Mỗi nhóm có thể có nhiều concept. Ảnh bìa nhóm lấy từ album của concept đang hiển thị đầu tiên.
+Album bị ngừng chia sẻ, không còn tồn tại hoặc concept đang bảo trì sẽ không xuất hiện công khai.
+Xóa album gỡ liên kết và tắt hiển thị các concept liên quan; không xóa bản thân concept.
+
+Các concept cũ mặc định chưa công khai. Chỉ admin được cấu hình nhóm/album/công khai;
+quyền quản lý concept nội bộ của nhân viên giữ nguyên. Các trường JSON bổ sung không đổi
+schemaVersion. Hai album demo và đường dẫn cũ vẫn tồn tại, chỉ gỡ thẻ giới thiệu khỏi trang chủ.
+`/#album-mau` tiếp tục dẫn đến khu vực concept để giữ tương thích liên kết cũ.
+
 ## Đổi ảnh banner trang chủ
 
 Quản trị viên mở **Cài đặt studio → Trang chủ → Ảnh banner trang chủ**, chọn ảnh PNG,

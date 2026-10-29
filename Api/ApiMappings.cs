@@ -800,7 +800,10 @@ internal static class ApiMappings
             concept.Description,
             RoundMoney(concept.Fee),
             concept.Status,
-            concept.CreatedAt);
+            concept.CreatedAt,
+            concept.Category,
+            concept.AlbumId,
+            concept.IsPublished);
 
     public static LoanDto ToLoan(OutfitLoan loan, AppData data, string today)
     {

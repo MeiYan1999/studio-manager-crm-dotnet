@@ -43,7 +43,7 @@ public sealed class WebsiteContent
     public string BrandName { get; set; } = "StudioCore";
     public string BrandLabel { get; set; } = "album";
     public string HowItWorksLabel { get; set; } = "Cách hoạt động";
-    public string SampleAlbumsLabel { get; set; } = "Album mẫu";
+    public string SampleAlbumsLabel { get; set; } = "Concept";
     public string ForStudioLabel { get; set; } = "Dành cho studio";
     public string HeroTitle { get; set; } = "Mỗi khoảnh khắc, một lời nhớ.";
     public string HeroDescription { get; set; } = "StudioCore gom những ngày đẹp nhất vào một album riêng. Bạn chỉ cần mở liên kết, thả tim những tấm ảnh mình yêu và gửi lại cho studio.";
@@ -505,6 +505,9 @@ public static class OutfitCategories
 
 public sealed class StudioConcept
 {
+    public string Category { get; set; } = "";
+    public string AlbumId { get; set; } = "";
+    public bool IsPublished { get; set; }
     public string Id { get; set; } = Guid.NewGuid().ToString("N")[..12];
     public string Name { get; set; } = "";
     public string Description { get; set; } = "";
@@ -1107,6 +1110,9 @@ public sealed class UpdateOutfitRequest
 
 public sealed class CreateConceptRequest
 {
+    public string? Category { get; set; }
+    public string? AlbumId { get; set; }
+    public bool? IsPublished { get; set; }
     public string Name { get; set; } = "";
     public string Description { get; set; } = "";
     public decimal Fee { get; set; }
@@ -1115,6 +1121,9 @@ public sealed class CreateConceptRequest
 
 public sealed class UpdateConceptRequest
 {
+    public string? Category { get; set; }
+    public string? AlbumId { get; set; }
+    public bool? IsPublished { get; set; }
     public string? Name { get; set; }
     public string? Description { get; set; }
     public decimal? Fee { get; set; }
@@ -1877,7 +1886,10 @@ public sealed record ConceptDto(
     string Description,
     decimal Fee,
     string Status,
-    DateTimeOffset CreatedAt);
+    DateTimeOffset CreatedAt,
+    string Category,
+    string AlbumId,
+    bool IsPublished);
 
 public sealed record LoanDto(
     string Id,
