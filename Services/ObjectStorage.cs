@@ -47,7 +47,8 @@ public sealed class ObjectStorage : IObjectStorage, IDisposable
             {
                 ServiceURL = endpoint,
                 ForcePathStyle = true,
-                AuthenticationRegion = configuration["Storage:Region"]?.Trim() ?? "auto"
+                AuthenticationRegion = configuration["Storage:Region"]?.Trim() ?? "auto",
+                SignatureVersion = "4"
             };
             _s3 = new AmazonS3Client(new BasicAWSCredentials(accessKey, secretKey), config);
             _logger.LogInformation("Ảnh chứng từ dùng object storage bucket {Bucket}.", _bucket);
@@ -81,7 +82,7 @@ public sealed class ObjectStorage : IObjectStorage, IDisposable
                 AutoCloseStream = false,
                 // S3-compatible providers may not support AWS streaming chunk signatures.
                 UseChunkEncoding = false,
-                DisablePayloadSigning = false
+                DisablePayloadSigning = true
             }, cancellationToken);
         }
         catch (AmazonS3Exception exception)
