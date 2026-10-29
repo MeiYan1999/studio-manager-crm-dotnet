@@ -256,7 +256,7 @@ function buildView(route) {
     case 'home':
       return landingView(context);
     case 'login':
-      return loginView(context);
+      return loginView({ ...context, websiteSettings });
     case 'dashboard':
       return dashboardView(context);
     case 'board':

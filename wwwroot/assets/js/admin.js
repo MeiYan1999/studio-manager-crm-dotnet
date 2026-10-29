@@ -312,18 +312,21 @@ export function pageHead({ eyebrow, title, lead, actions = '', back = '' }) {
 
 // ---------------------------------------------------------------- login
 
-export function loginView({ session }) {
+export function loginView({ session, websiteSettings = {} }) {
+  const content = websiteSettings.website || {};
+  const name = content.loginName || websiteSettings.studioName || session?.studioName || 'Mây Studio';
+  const brand = websiteSettings.logoUrl ? `<img src="${escapeAttr(websiteSettings.logoUrl)}" alt="${escapeAttr(name)}" style="max-width:180px;height:56px;object-fit:contain">` : escapeHtml(name);
   const next = new URLSearchParams(location.search).get('next') || '/admin';
   const html = `
     <div class="login-page">
-      <section class="login-visual" aria-label="Mây Studio">
-        <img class="login-visual__image" src="/assets/img/demo/07.jpg" alt="Khoảnh khắc cô dâu bên biển" fetchpriority="high">
+      <section class="login-visual" aria-label="${escapeAttr(name)}">
+        <img class="login-visual__image" src="${escapeAttr(websiteSettings.loginImageUrl || "/assets/img/demo/07.jpg")}" alt="${escapeAttr(name)}" fetchpriority="high">
         <div class="login-visual__veil"></div>
-        <a class="wordmark wordmark--light" href="/">mây<span>.</span><small>album</small></a>
+        <a class="wordmark wordmark--light" href="/">${brand}</a>
         <div class="login-visual__quote">
           <span class="quote-mark">${icon('quote')}</span>
-          <blockquote>“Ảnh đẹp nhất là ảnh khiến ta nhớ lại cảm giác của ngày hôm đó.”</blockquote>
-          <p>Mây Studio · Đà Lạt</p>
+          <blockquote>${escapeHtml(content.loginQuote ?? 'Ảnh đẹp nhất là ảnh khiến ta nhớ lại cảm giác của ngày hôm đó.')}</blockquote>
+          <p>${escapeHtml(name)}</p>
         </div>
         <div class="login-visual__foot">
           <span>${icon('lock')} Không gian riêng cho studio</span>
@@ -333,12 +336,12 @@ export function loginView({ session }) {
 
       <section class="login-panel">
         <div class="login-panel__top">
-          <a class="wordmark wordmark--mobile" href="/">mây<span>.</span><small>album</small></a>
+          <a class="wordmark wordmark--mobile" href="/">${brand}</a>
           <a class="btn btn--text btn--compact" href="/">${icon('arrowLeft')} Về trang chủ</a>
         </div>
         <div class="login-card">
           <p class="eyebrow"><span class="eyebrow__dot"></span>Khu vực studio</p>
-          <h1>Chào mừng trở lại.</h1>
+          <h1>${escapeHtml(content.loginTitle ?? 'Chào mừng trở lại.')}</h1>
           <p class="login-card__lead">Đăng nhập bằng tài khoản riêng để mở bảng điều khiển và tiếp tục chăm sóc những album của bạn.</p>
 
           <form class="login-form" data-login-form novalidate>
@@ -367,7 +370,7 @@ export function loginView({ session }) {
             <p>${icon('lock')} Mỗi thành viên dùng tài khoản riêng do quản trị viên tạo trong Cài đặt studio.</p>
           </div>
         </div>
-        <p class="login-panel__credit">© ${new Date().getFullYear()} Mây Studio · Mây Album</p>
+        <p class="login-panel__credit">© ${new Date().getFullYear()} ${escapeHtml(name)}</p>
       </section>
     </div>
   `;
@@ -3405,6 +3408,39 @@ export function settingsView({ session }) {
         } catch (error) { showToast(error.message, 'error'); }
         finally { button.disabled = false; }
       });
+      page.addEventListener('change', async event => {
+        if (!event.target.matches('[data-login-image-upload]')) return;
+        const file = event.target.files?.[0];
+        if (!file) return;
+        if (file.size > 2 * 1024 * 1024) { showToast('Ảnh tối đa 2 MB.', 'error'); return; }
+        event.target.disabled = true;
+        try {
+          const body = new FormData(); body.append('file', file);
+          const response = await fetch('/api/admin/settings/login-image', { method: 'POST', body, credentials: 'same-origin' });
+          const result = await response.json();
+          if (!response.ok) throw new Error(result.error || 'Chưa tải được ảnh.');
+          settings = result;
+          window.dispatchEvent(new CustomEvent('may:website', { detail: result }));
+          const preview = page.querySelector('[data-login-image-preview]');
+          preview.src = result.loginImageUrl; preview.hidden = false;
+          page.querySelector('[data-login-image-remove]').hidden = false;
+          showToast('Đã lưu ảnh đăng nhập.', 'success');
+        } catch (error) { showToast(error.message, 'error'); }
+        finally { event.target.disabled = false; event.target.value = ''; }
+      });
+      page.addEventListener('click', async event => {
+        const button = event.target.closest('[data-login-image-remove]');
+        if (!button) return;
+        button.disabled = true;
+        try {
+          settings = await api('/api/admin/settings/login-image', { method: 'DELETE' });
+          window.dispatchEvent(new CustomEvent('may:website', { detail: settings }));
+          page.querySelector('[data-login-image-preview]').hidden = true;
+          button.hidden = true;
+          showToast('Đã dùng lại ảnh mặc định.', 'success');
+        } catch (error) { showToast(error.message, 'error'); }
+        finally { button.disabled = false; }
+      });
       page.addEventListener('submit', async event => {
         const form = event.target.closest('[data-settings-form]');
         if (!form) return;
@@ -3433,7 +3469,7 @@ export function settingsView({ session }) {
           const result = await api('/api/admin/settings', {
             method: 'PUT',
             body: {
-              website: Object.fromEntries(["brandName", "brandLabel", "howItWorksLabel", "sampleAlbumsLabel", "forStudioLabel", "heroTitle", "heroDescription", "footerDescription", "footerPrivacy"].map(name => [name, form.elements.namedItem(name).value.trim()])),
+              website: Object.fromEntries(["loginName", "loginQuote", "loginTitle", "brandName", "brandLabel", "howItWorksLabel", "sampleAlbumsLabel", "forStudioLabel", "heroTitle", "heroDescription", "footerDescription", "footerPrivacy"].map(name => [name, form.elements.namedItem(name).value.trim()])),
               studioName: studioName.value.trim(),
               contactEmail: contactEmail.value.trim(),
               googleApiKey: apiKey.value.trim() || null,
@@ -3442,7 +3478,7 @@ export function settingsView({ session }) {
           });
           if (disposed) return;
           settings = result;
-          window.dispatchEvent(new CustomEvent('may:website', { detail: { studioName: result.studioName, website: result.website, logoUrl: result.logoUrl } }));
+          window.dispatchEvent(new CustomEvent('may:website', { detail: { studioName: result.studioName, website: result.website, logoUrl: result.logoUrl, loginImageUrl: result.loginImageUrl } }));
           if (session) {
             session.studioName = result.studioName;
             notifySession(session);
@@ -4251,6 +4287,18 @@ function renderSettings(settings, users, session, staff = []) {
             </div>
           </section>
 
+          <section class="panel settings-section">
+            <header class="panel__head"><div><h2>Trang đăng nhập</h2><p>Tùy chỉnh tên và ảnh giới thiệu trên màn hình đăng nhập. Để trống tên để dùng tên studio.</p></div></header>
+            <div class="form-grid">
+<div class="field field--full"><label for="settings-loginName">Tên hiển thị trang đăng nhập</label><input id="settings-loginName" name="loginName" maxlength="100" value="${escapeAttr(settings.website?.loginName ?? '')}"></div>
+<div class="field field--full"><label for="settings-loginQuote">Câu giới thiệu trên ảnh</label><input id="settings-loginQuote" name="loginQuote" maxlength="600" value="${escapeAttr(settings.website?.loginQuote ?? 'Ảnh đẹp nhất là ảnh khiến ta nhớ lại cảm giác của ngày hôm đó.')}"></div>
+<div class="field field--full"><label for="settings-loginTitle">Tiêu đề chào mừng</label><input id="settings-loginTitle" name="loginTitle" maxlength="160" value="${escapeAttr(settings.website?.loginTitle ?? 'Chào mừng trở lại.')}"></div>
+<div class="field field--full"><label for="settings-login-image">Ảnh giới thiệu trang đăng nhập</label>
+<img data-login-image-preview src="${escapeAttr(settings.loginImageUrl || '')}" alt="Ảnh đăng nhập" style="max-width:100%;width:240px;height:160px;object-fit:cover" ${settings.loginImageUrl ? '' : 'hidden'}>
+<input id="settings-login-image" type="file" accept="image/png,image/jpeg,image/webp" data-login-image-upload>
+<p class="field__hint">PNG, JPG hoặc WebP tối đa 2 MB. Ảnh lưu ngay khi tải lên. Nên dùng ảnh dọc, chủ thể ở giữa.</p>
+<button class="btn btn--ghost btn--compact" type="button" data-login-image-remove ${settings.loginImageUrl ? '' : 'hidden'}>Dùng lại ảnh mặc định</button></div>
+</div></section>
           <section class="panel settings-section">
             <header class="panel__head panel__head--icon">
               <span class="panel__icon panel__icon--drive">${icon('drive')}</span>

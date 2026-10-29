@@ -28,6 +28,12 @@ public static class AdminEndpoints
             store.Write(data => data.Settings.LogoKey = "");
             return Results.Ok(BuildSettingsDto(store));
         }).AddEndpointFilter<StudioAdminFilter>();
+        group.MapPost("/settings/login-image", UploadLoginImage).AddEndpointFilter<StudioAdminFilter>().DisableAntiforgery();
+        group.MapDelete("/settings/login-image", (DataStore store) =>
+        {
+            store.Write(data => data.Settings.LoginImageKey = "");
+            return Results.Ok(BuildSettingsDto(store));
+        }).AddEndpointFilter<StudioAdminFilter>();
         group.MapGet("/settings", GetSettings).AddEndpointFilter<StudioAdminFilter>();
         group.MapPut("/settings", SaveSettings).AddEndpointFilter<StudioAdminFilter>();
         group.MapGet("/users", GetUsers).AddEndpointFilter<StudioAdminFilter>();
@@ -752,6 +758,24 @@ public static class AdminEndpoints
         return Results.Ok(BuildSettingsDto(store));
     }
 
+    private static async Task<IResult> UploadLoginImage(IFormFile? file, HttpContext context, DataStore store, IObjectStorage storage)
+    {
+        if (file is null || file.Length == 0 || file.Length > 2 * 1024 * 1024)
+            throw new ApiException(400, "Chọn ảnh đăng nhập tối đa 2 MB.", "invalid_login-image");
+        await using var memory = new MemoryStream();
+        await file.CopyToAsync(memory, context.RequestAborted);
+        var bytes = memory.ToArray();
+        var type = bytes.Length >= 8 && bytes.AsSpan(0, 8).SequenceEqual(new byte[] {137,80,78,71,13,10,26,10}) ? "image/png"
+            : bytes.Length >= 3 && bytes[0] == 255 && bytes[1] == 216 && bytes[2] == 255 ? "image/jpeg"
+            : bytes.Length >= 12 && Encoding.ASCII.GetString(bytes, 0, 4) == "RIFF" && Encoding.ASCII.GetString(bytes, 8, 4) == "WEBP" ? "image/webp" : "";
+        if (type.Length == 0) throw new ApiException(400, "Chỉ nhận ảnh PNG, JPG hoặc WebP hợp lệ.", "invalid_login-image");
+        var key = "login-image-" + Guid.NewGuid().ToString("N");
+        memory.Position = 0;
+        await storage.PutAsync(key, memory, type, context.RequestAborted);
+        store.Write(data => { data.Settings.LoginImageKey = key; data.Settings.LoginImageContentType = type; });
+        return Results.Ok(BuildSettingsDto(store));
+    }
+
     private static IResult SaveSettings(SaveSettingsRequest request, HttpContext context, DataStore store, AdminSessionStore sessions)
     {
         var actor = sessions.RequireUser(context);
@@ -770,6 +794,12 @@ public static class AdminEndpoints
 
         if (request.Website is not null)
         {
+            request.Website.LoginName = request.Website.LoginName?.Trim() ?? "";
+            if (request.Website.LoginName.Length > 100) throw new ApiException(400, "Tên hiển thị trang đăng nhập tối đa 100 ký tự.", "invalid_website_content");
+            request.Website.LoginQuote = request.Website.LoginQuote?.Trim() ?? "";
+            if (request.Website.LoginQuote.Length > 600) throw new ApiException(400, "Câu giới thiệu trên ảnh tối đa 600 ký tự.", "invalid_website_content");
+            request.Website.LoginTitle = request.Website.LoginTitle?.Trim() ?? "";
+            if (request.Website.LoginTitle.Length > 160) throw new ApiException(400, "Tiêu đề chào mừng tối đa 160 ký tự.", "invalid_website_content");
             request.Website.BrandName = request.Website.BrandName?.Trim() ?? "";
             if (request.Website.BrandName.Length > 60)
                 throw new ApiException(400, "Nội dung tên hiển thị trên logo quá dài (tối đa 60 ký tự).", "invalid_website_content");
@@ -846,6 +876,8 @@ public static class AdminEndpoints
         {
             StudioName = data.Settings.StudioName,
             ContactEmail = data.Settings.ContactEmail,
+            LoginImageKey = data.Settings.LoginImageKey,
+            LoginImageContentType = data.Settings.LoginImageContentType,
             LogoKey = data.Settings.LogoKey,
             LogoContentType = data.Settings.LogoContentType,
             Website = data.Settings.Website

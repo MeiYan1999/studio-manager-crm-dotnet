@@ -35,6 +35,9 @@ public sealed class AppData
 
 public sealed class WebsiteContent
 {
+    public string LoginName { get; set; } = "";
+    public string LoginQuote { get; set; } = "Ảnh đẹp nhất là ảnh khiến ta nhớ lại cảm giác của ngày hôm đó.";
+    public string LoginTitle { get; set; } = "Chào mừng trở lại.";
     public string BrandName { get; set; } = "mây";
     public string BrandLabel { get; set; } = "album";
     public string HowItWorksLabel { get; set; } = "Cách hoạt động";
@@ -48,6 +51,9 @@ public sealed class WebsiteContent
 
 public sealed class StudioSettings
 {
+    public string LoginImageKey { get; set; } = "";
+    public string LoginImageContentType { get; set; } = "image/png";
+    public string LoginImageUrl => LoginImageKey.Length > 0 ? "/api/public/login-image?v=" + LoginImageKey : "";
     public string LogoKey { get; set; } = "";
     public string LogoContentType { get; set; } = "image/png";
     public string LogoUrl => LogoKey.Length > 0 ? "/api/public/logo?v=" + LogoKey : "";
@@ -1459,7 +1465,8 @@ public sealed record AdminSettingsDto(
     bool GoogleConfigured,
     string? GoogleKeyHint,
     WebsiteContent Website,
-    string LogoUrl);
+    string LogoUrl,
+    string LoginImageUrl);
 
 public sealed record StudioUserDto(
     string Id,

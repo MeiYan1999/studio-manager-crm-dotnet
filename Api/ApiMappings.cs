@@ -152,7 +152,8 @@ internal static class ApiMappings
             !string.IsNullOrWhiteSpace(effectiveApiKey),
             hint,
             settings.Website,
-            settings.LogoUrl);
+            settings.LogoUrl,
+            settings.LoginImageUrl);
     }
 
     public static SessionUserDto ToSessionUser(StudioUser user) =>
