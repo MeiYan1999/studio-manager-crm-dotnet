@@ -31,6 +31,16 @@ def run():
     req(admin, path, item, 'PUT')
     assert req(guest, '/api/public/prices')[0]['items'][0]['priceText'] == 'Giá kiểm tra'
     assert req(admin, '/api/admin/packages') == packages_before
+    req(guest, '/api/admin/price-catalog/groups', {'title':'Denied'}, 'POST', 401)
+    group = req(admin, '/api/admin/price-catalog/groups', {'title':'Nhóm thử', 'description':'Mô tả thử'}, 'POST', 201)
+    item_path = '/api/admin/price-catalog/' + group['id'] + '/items'
+    req(admin, item_path, {'name':'', 'visible':True}, 'POST', 400)
+    created = req(admin, item_path, {'name':'Gói mới', 'priceText':'2.000đ', 'benefits':'Ảnh\nTrang phục', 'visible':True}, 'POST', 201)
+    visible_group = next(g for g in req(guest, '/api/public/prices') if g['id'] == group['id'])
+    assert visible_group['items'][0]['id'] == created['id']
+    assert visible_group['items'][0]['benefits'] == 'Ảnh\nTrang phục'
+    req(admin, '/api/admin/price-catalog/missing/items', {'name':'Gói', 'visible':True}, 'POST', 404)
+    assert req(admin, '/api/admin/packages') == packages_before
     item['name'] = ''
     req(admin, path, item, 'PUT', 400)
     assert req(guest, '/api/public/prices')[0]['items'][0]['priceText'] == 'Giá kiểm tra'

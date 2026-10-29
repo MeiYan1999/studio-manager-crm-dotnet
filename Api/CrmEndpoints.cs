@@ -76,6 +76,34 @@ public static class CrmEndpoints
         group.MapDelete("/customers/{id}", DeleteCustomer).AddEndpointFilter(customers);
 
         group.MapGet("/price-catalog", (DataStore store) => Results.Ok(store.Read(data => data.PriceCatalog))).AddEndpointFilter(packages);
+        group.MapPost("/price-catalog/groups", (PriceGroup request, HttpContext context, DataStore store, AdminSessionStore sessions) =>
+        {
+            if (string.IsNullOrWhiteSpace(request.Title) || request.Title.Length > 120 || (request.Description?.Length ?? 0) > 500)
+                throw new ApiException(400, "Tên nhóm hoặc mô tả chưa hợp lệ.", "invalid_price_group");
+            var actor = sessions.RequireUser(context);
+            var groupItem = store.Write(data => {
+                var created = new PriceGroup { Id = NewShortId(), Title = request.Title.Trim(), Description = (request.Description ?? "").Trim() };
+                data.PriceCatalog.Add(created);
+                StudioAudit.Add(data, actor, "packages", "create", $"đã thêm nhóm bảng giá “{created.Title}”", created.Id, []);
+                return created;
+            });
+            return Results.Created($"/api/admin/price-catalog/{groupItem.Id}", groupItem);
+        }).AddEndpointFilter(packages);
+        group.MapPost("/price-catalog/{groupId}/items", (string groupId, PriceItem request, HttpContext context, DataStore store, AdminSessionStore sessions) =>
+        {
+            if (string.IsNullOrWhiteSpace(request.Name) || request.Name.Length > 120 || (request.Subtitle?.Length ?? 0) > 500 || (request.PriceText?.Length ?? 0) > 500 || (request.Benefits?.Length ?? 0) > 4000)
+                throw new ApiException(400, "Nội dung bảng giá chưa hợp lệ.", "invalid_price_item");
+            var actor = sessions.RequireUser(context);
+            var item = store.Write(data => {
+                var parent = data.PriceCatalog.FirstOrDefault(g => g.Id == groupId)
+                    ?? throw new ApiException(404, "Không tìm thấy nhóm bảng giá.", "price_group_not_found");
+                var created = new PriceItem { Id = NewShortId(), Name = request.Name.Trim(), Subtitle = (request.Subtitle ?? "").Trim(), PriceText = (request.PriceText ?? "").Trim(), Benefits = (request.Benefits ?? "").Trim(), Visible = request.Visible };
+                parent.Items.Add(created);
+                StudioAudit.Add(data, actor, "packages", "create", $"đã thêm gói bảng giá “{created.Name}”", created.Id, []);
+                return created;
+            });
+            return Results.Created($"/api/admin/price-catalog/{groupId}/{item.Id}", item);
+        }).AddEndpointFilter(packages);
         group.MapPut("/price-catalog/{groupId}/{itemId}", (string groupId, string itemId, PriceItem request, DataStore store) =>
         {
             if (string.IsNullOrWhiteSpace(request.Name) || request.Name.Length > 120 || (request.Subtitle?.Length ?? 0) > 500 || (request.PriceText?.Length ?? 0) > 500 || (request.Benefits?.Length ?? 0) > 4000)
