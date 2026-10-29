@@ -150,7 +150,8 @@ internal static class ApiMappings
             settings.StudioName,
             settings.ContactEmail,
             !string.IsNullOrWhiteSpace(effectiveApiKey),
-            hint);
+            hint,
+            settings.Website);
     }
 
     public static SessionUserDto ToSessionUser(StudioUser user) =>

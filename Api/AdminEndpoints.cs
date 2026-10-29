@@ -744,6 +744,39 @@ public static class AdminEndpoints
             throw new ApiException(400, "Email liên hệ chưa đúng định dạng.", "invalid_email");
         }
 
+        if (request.Website is not null)
+        {
+            request.Website.BrandName = request.Website.BrandName?.Trim() ?? "";
+            if (request.Website.BrandName.Length > 60)
+                throw new ApiException(400, "Nội dung tên hiển thị trên logo quá dài (tối đa 60 ký tự).", "invalid_website_content");
+            request.Website.BrandLabel = request.Website.BrandLabel?.Trim() ?? "";
+            if (request.Website.BrandLabel.Length > 30)
+                throw new ApiException(400, "Nội dung chữ nhỏ bên cạnh logo quá dài (tối đa 30 ký tự).", "invalid_website_content");
+            request.Website.HowItWorksLabel = request.Website.HowItWorksLabel?.Trim() ?? "";
+            if (request.Website.HowItWorksLabel.Length > 60)
+                throw new ApiException(400, "Nội dung menu: cách hoạt động quá dài (tối đa 60 ký tự).", "invalid_website_content");
+            request.Website.SampleAlbumsLabel = request.Website.SampleAlbumsLabel?.Trim() ?? "";
+            if (request.Website.SampleAlbumsLabel.Length > 60)
+                throw new ApiException(400, "Nội dung menu: album mẫu quá dài (tối đa 60 ký tự).", "invalid_website_content");
+            request.Website.ForStudioLabel = request.Website.ForStudioLabel?.Trim() ?? "";
+            if (request.Website.ForStudioLabel.Length > 60)
+                throw new ApiException(400, "Nội dung menu: dành cho studio quá dài (tối đa 60 ký tự).", "invalid_website_content");
+            request.Website.HeroTitle = request.Website.HeroTitle?.Trim() ?? "";
+            if (request.Website.HeroTitle.Length > 160)
+                throw new ApiException(400, "Nội dung tiêu đề giới thiệu trang chủ quá dài (tối đa 160 ký tự).", "invalid_website_content");
+            request.Website.HeroDescription = request.Website.HeroDescription?.Trim() ?? "";
+            if (request.Website.HeroDescription.Length > 1200)
+                throw new ApiException(400, "Nội dung đoạn giới thiệu trang chủ quá dài (tối đa 1200 ký tự).", "invalid_website_content");
+            request.Website.FooterDescription = request.Website.FooterDescription?.Trim() ?? "";
+            if (request.Website.FooterDescription.Length > 600)
+                throw new ApiException(400, "Nội dung giới thiệu ở chân trang quá dài (tối đa 600 ký tự).", "invalid_website_content");
+            request.Website.FooterPrivacy = request.Website.FooterPrivacy?.Trim() ?? "";
+            if (request.Website.FooterPrivacy.Length > 600)
+                throw new ApiException(400, "Nội dung dòng ghi chú riêng tư ở chân trang quá dài (tối đa 600 ký tự).", "invalid_website_content");
+            if (string.IsNullOrWhiteSpace(request.Website.BrandName))
+                throw new ApiException(400, "Tên hiển thị trên logo không được để trống.", "invalid_brand_name");
+        }
+
         var newKey = request.GoogleApiKey?.Trim();
         if (newKey is { Length: > 500 })
         {
@@ -754,6 +787,7 @@ public static class AdminEndpoints
         {
             data.Settings.StudioName = studioName;
             data.Settings.ContactEmail = contactEmail;
+            if (request.Website is not null) data.Settings.Website = request.Website;
 
             if (request.ClearGoogleApiKey)
             {
@@ -787,7 +821,8 @@ public static class AdminEndpoints
         var settings = store.Read(data => new StudioSettings
         {
             StudioName = data.Settings.StudioName,
-            ContactEmail = data.Settings.ContactEmail
+            ContactEmail = data.Settings.ContactEmail,
+            Website = data.Settings.Website
         });
         return ApiMappings.ToSettings(settings, store.GetEffectiveGoogleApiKey());
     }

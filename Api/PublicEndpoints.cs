@@ -7,6 +7,12 @@ public static class PublicEndpoints
 {
     public static void Map(WebApplication app)
     {
+        app.MapGet("/api/public/website", (DataStore store) => Results.Ok(store.Read(data => new
+        {
+            data.Settings.StudioName,
+            data.Settings.Website
+        })));
+
         var group = app.MapGroup("/api/public/albums");
 
         group.MapGet("/{token}", (string token, DataStore store) =>

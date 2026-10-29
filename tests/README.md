@@ -36,3 +36,14 @@ chạy trên hostname ngoài localhost/127.0.0.1.
 
 Ảnh thử là PNG nhỏ được tạo trong bài kiểm thử; không cần Google Drive.
 Không chạy các bài kiểm thử này trên dữ liệu studio thật.
+
+Kiểm thử thương hiệu và nội dung trang chủ (dùng máy chủ thử riêng như trên;
+đặt `CRM_TEST_URL` nếu dùng cổng khác):
+
+```bash
+CRM_TEST_URL=http://127.0.0.1:5080 NODE_PATH=/tmp/may-crm-test-deps/node_modules node tests/branding_ui.cjs
+```
+
+Bài kiểm thử đổi và khôi phục cài đặt: logo, tên studio, lời giới thiệu,
+điều hướng về trang chủ sau khi lưu, tải lại trang, nội dung dạng văn bản,
+kiểm tra độ dài/tên trống và bố cục điện thoại.

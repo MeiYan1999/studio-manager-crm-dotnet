@@ -224,7 +224,7 @@ export function adminShell({ active, session, content, topbarAction = '' }) {
       <div class="admin-scrim" data-sidebar-close></div>
       <aside class="admin-sidebar" aria-label="Điều hướng studio">
         <div class="admin-sidebar__brand">
-          <a class="wordmark" href="/admin">mây<span>.</span><small>studio</small></a>
+          <a class="wordmark" href="/admin">${escapeHtml(studioName)}</a>
           <button class="icon-btn admin-sidebar__close" type="button" data-sidebar-close aria-label="Đóng menu">${icon('x')}</button>
         </div>
         ${canCreateAlbum ? `<a class="btn btn--primary admin-sidebar__create" href="/admin/create">${icon('plus')} Tạo album mới</a>` : ''}
@@ -254,7 +254,7 @@ export function adminShell({ active, session, content, topbarAction = '' }) {
       <div class="admin-main">
         <header class="admin-mobilebar">
           <button class="icon-btn" type="button" data-sidebar-open aria-label="Mở menu">${icon('menu')}</button>
-          <a class="wordmark wordmark--small" href="/admin">mây<span>.</span></a>
+          <a class="wordmark wordmark--small" href="/admin">${escapeHtml(studioName)}</a>
           ${topbarAction || '<a class="icon-btn" href="/admin/create" aria-label="Tạo album mới">' + icon('plus') + '</a>'}
         </header>
         <main class="admin-page" id="admin-page">
@@ -3400,6 +3400,7 @@ export function settingsView({ session }) {
           const result = await api('/api/admin/settings', {
             method: 'PUT',
             body: {
+              website: Object.fromEntries(["brandName", "brandLabel", "howItWorksLabel", "sampleAlbumsLabel", "forStudioLabel", "heroTitle", "heroDescription", "footerDescription", "footerPrivacy"].map(name => [name, form.elements.namedItem(name).value.trim()])),
               studioName: studioName.value.trim(),
               contactEmail: contactEmail.value.trim(),
               googleApiKey: apiKey.value.trim() || null,
@@ -3408,6 +3409,7 @@ export function settingsView({ session }) {
           });
           if (disposed) return;
           settings = result;
+          window.dispatchEvent(new CustomEvent('may:website', { detail: { studioName: result.studioName, website: result.website } }));
           if (session) {
             session.studioName = result.studioName;
             notifySession(session);
@@ -4191,6 +4193,21 @@ function renderSettings(settings, users, session, staff = []) {
                 </div>
                 <p class="field__hint">Khách có thể dùng email này để liên hệ khi cần hỏi thêm về album.</p>
               </div>
+            </div>
+          </section>
+
+          <section class="panel settings-section">
+            <header class="panel__head"><div><p class="eyebrow">Trang chủ</p><h2>Thương hiệu &amp; lời giới thiệu</h2><p>Đổi logo chữ, các nhãn menu và lời giới thiệu ở đầu, chân trang. Tên studio phía trên dùng cho dòng bản quyền.</p></div></header>
+            <div class="form-grid">
+              <div class="field field--full"><label for="settings-brandName">Tên hiển thị trên logo</label><input id="settings-brandName" name="brandName" type="text" maxlength="60" value="${escapeAttr(settings.website?.brandName ?? 'mây')}" required></div>
+              <div class="field field--full"><label for="settings-brandLabel">Chữ nhỏ bên cạnh logo</label><input id="settings-brandLabel" name="brandLabel" type="text" maxlength="30" value="${escapeAttr(settings.website?.brandLabel ?? 'album')}"></div>
+              <div class="field field--full"><label for="settings-howItWorksLabel">Menu: Cách hoạt động</label><input id="settings-howItWorksLabel" name="howItWorksLabel" type="text" maxlength="60" value="${escapeAttr(settings.website?.howItWorksLabel ?? 'Cách hoạt động')}"></div>
+              <div class="field field--full"><label for="settings-sampleAlbumsLabel">Menu: Album mẫu</label><input id="settings-sampleAlbumsLabel" name="sampleAlbumsLabel" type="text" maxlength="60" value="${escapeAttr(settings.website?.sampleAlbumsLabel ?? 'Album mẫu')}"></div>
+              <div class="field field--full"><label for="settings-forStudioLabel">Menu: Dành cho studio</label><input id="settings-forStudioLabel" name="forStudioLabel" type="text" maxlength="60" value="${escapeAttr(settings.website?.forStudioLabel ?? 'Dành cho studio')}"></div>
+              <div class="field field--full"><label for="settings-heroTitle">Tiêu đề giới thiệu trang chủ</label><input id="settings-heroTitle" name="heroTitle" type="text" maxlength="160" value="${escapeAttr(settings.website?.heroTitle ?? 'Mỗi khoảnh khắc, một lời nhớ.')}"></div>
+              <div class="field field--full"><label for="settings-heroDescription">Đoạn giới thiệu trang chủ</label><textarea id="settings-heroDescription" name="heroDescription" rows="3" maxlength="1200">${escapeHtml(settings.website?.heroDescription ?? 'Mây gom những ngày đẹp nhất vào một album riêng. Bạn chỉ cần mở liên kết, thả tim những tấm ảnh mình yêu và gửi lại cho studio.')}</textarea></div>
+              <div class="field field--full"><label for="settings-footerDescription">Giới thiệu ở chân trang</label><textarea id="settings-footerDescription" name="footerDescription" rows="3" maxlength="600">${escapeHtml(settings.website?.footerDescription ?? 'Album ảnh riêng tư, được làm bằng sự chăm chút.')}</textarea></div>
+              <div class="field field--full"><label for="settings-footerPrivacy">Dòng ghi chú riêng tư ở chân trang</label><textarea id="settings-footerPrivacy" name="footerPrivacy" rows="3" maxlength="600">${escapeHtml(settings.website?.footerPrivacy ?? 'Album được chia sẻ riêng cho từng khách hàng.')}</textarea></div>
             </div>
           </section>
 

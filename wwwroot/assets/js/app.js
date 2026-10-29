@@ -1,7 +1,9 @@
-import { authApi } from './api.js';
+import { api, authApi } from './api.js';
 import {
   PLACEHOLDER_IMAGE,
   icon,
+  escapeHtml,
+  escapeAttr,
   showToast
 } from './ui.js';
 import {
@@ -28,6 +30,8 @@ import { photoFilterView } from './tools.js';
 import { publicAlbumView, notFoundAlbumView } from './album.js';
 
 const APP_TITLE = 'Mây Album';
+let websiteSettings = { studioName: 'Mây Studio', website: {} };
+window.addEventListener('may:website', event => { websiteSettings = event.detail; });
 
 const session = {
   authenticated: false,
@@ -316,25 +320,28 @@ function navigate(path, options = {}) {
 }
 
 function landingView() {
+  const content = websiteSettings.website || {};
+  const text = (key, fallback) => escapeHtml(content[key] ?? fallback);
+  const brand = `<a class="wordmark" href="/" aria-label="${escapeAttr(content.brandName ?? 'mây')} — trang chủ">${text('brandName', 'mây')}<span>.</span><small>${text('brandLabel', 'album')}</small></a>`;
   const html = `
     <div class="landing">
       <header class="site-nav">
-        <a class="wordmark" href="/" aria-label="Mây Album — trang chủ">mây<span>.</span><small>album</small></a>
+        ${brand}
         <nav class="site-nav__links" aria-label="Điều hướng chính">
-          <a href="#cach-hoat-dong">Cách hoạt động</a>
-          <a href="#album-mau">Album mẫu</a>
-          <a href="#danh-cho-studio">Dành cho studio</a>
+          <a href="#cach-hoat-dong">${text('howItWorksLabel', 'Cách hoạt động')}</a>
+          <a href="#album-mau">${text('sampleAlbumsLabel', 'Album mẫu')}</a>
+          <a href="#danh-cho-studio">${text('forStudioLabel', 'Dành cho studio')}</a>
         </nav>
         <div class="site-nav__actions">
           <a class="btn btn--ghost btn--compact" href="/admin/login">${icon('lock')} Studio</a>
-          <a class="btn btn--primary btn--compact" href="/a/demo-ngay-chung-doi">Xem album mẫu ${icon('arrowUpRight')}</a>
+          <a class="btn btn--primary btn--compact" href="/a/demo-ngay-chung-doi">${text('sampleAlbumsLabel', 'Album mẫu')} ${icon('arrowUpRight')}</a>
         </div>
         <button class="icon-btn site-nav__toggle" type="button" data-menu-toggle aria-label="Mở menu" aria-expanded="false">${icon('menu')}</button>
       </header>
       <div class="site-nav__drawer" data-mobile-menu>
-        <a href="#cach-hoat-dong">Cách hoạt động</a>
-        <a href="#album-mau">Album mẫu</a>
-        <a href="#danh-cho-studio">Dành cho studio</a>
+        <a href="#cach-hoat-dong">${text('howItWorksLabel', 'Cách hoạt động')}</a>
+        <a href="#album-mau">${text('sampleAlbumsLabel', 'Album mẫu')}</a>
+        <a href="#danh-cho-studio">${text('forStudioLabel', 'Dành cho studio')}</a>
         <a href="/admin/login">Đăng nhập studio</a>
       </div>
 
@@ -342,10 +349,9 @@ function landingView() {
         <section class="landing-hero">
           <div class="landing-hero__copy">
             <p class="eyebrow"><span class="eyebrow__dot"></span>Album ảnh riêng tư</p>
-            <h1>Mỗi khoảnh khắc,<br>một <em>lời nhớ.</em></h1>
+            <h1>${!content.heroTitle || content.heroTitle === 'Mỗi khoảnh khắc, một lời nhớ.' ? 'Mỗi khoảnh khắc,<br>một <em>lời nhớ.</em>' : text('heroTitle', '')}</h1>
             <p class="landing-hero__lead">
-              Mây gom những ngày đẹp nhất vào một album riêng. Bạn chỉ cần mở liên kết,
-              thả tim những tấm ảnh mình yêu và gửi lại cho studio.
+              ${text('heroDescription', 'Mây gom những ngày đẹp nhất vào một album riêng. Bạn chỉ cần mở liên kết, thả tim những tấm ảnh mình yêu và gửi lại cho studio.')}
             </p>
             <div class="landing-hero__actions">
               <a class="btn btn--primary btn--lg" href="/a/demo-ngay-chung-doi">Mở album mẫu ${icon('arrowRight')}</a>
@@ -457,7 +463,7 @@ function landingView() {
         <section class="landing-studio" id="danh-cho-studio">
           <div class="landing-studio__inner">
             <div>
-              <p class="eyebrow eyebrow--light">Dành cho studio</p>
+              <p class="eyebrow eyebrow--light">${text('forStudioLabel', 'Dành cho studio')}</p>
               <h2>Chiếc album đầu tiên<br>chỉ mất <em>vài phút.</em></h2>
               <p>Kết nối Google Drive, tạo album, gửi liên kết. Mọi lựa chọn của khách được lưu lại ngay khi họ thả tim.</p>
               <div class="landing-studio__actions">
@@ -471,15 +477,15 @@ function landingView() {
               <li><strong>Xuất CSV</strong><span>Danh sách ảnh khách chọn, kèm ghi chú.</span></li>
             </ol>
           </div>
-          <span class="landing-studio__mark" aria-hidden="true">mây.</span>
+          <span class="landing-studio__mark" aria-hidden="true">${text('brandName', 'mây')}.</span>
         </section>
       </main>
 
       <footer class="site-footer">
         <div class="site-footer__top">
           <div>
-            <a class="wordmark" href="/">mây<span>.</span><small>album</small></a>
-            <p>Album ảnh riêng tư, được làm bằng sự chăm chút.</p>
+            ${brand}
+            <p>${text('footerDescription', 'Album ảnh riêng tư, được làm bằng sự chăm chút.')}</p>
           </div>
           <div class="site-footer__cols">
             <div>
@@ -495,8 +501,8 @@ function landingView() {
           </div>
         </div>
         <div class="site-footer__bottom">
-          <span>© ${new Date().getFullYear()} Mây Studio</span>
-          <span>${icon('lock')} Album được chia sẻ riêng cho từng khách hàng.</span>
+          <span>© ${new Date().getFullYear()} ${escapeHtml(websiteSettings.studioName)}</span>
+          <span>${icon('lock')} ${text('footerPrivacy', 'Album được chia sẻ riêng cho từng khách hàng.')}</span>
         </div>
       </footer>
     </div>
@@ -611,6 +617,11 @@ document.addEventListener('error', event => {
 }, true);
 
 async function boot() {
+  try {
+    websiteSettings = await api('/api/public/website');
+  } catch {
+    // Keep default copy if public settings are temporarily unavailable.
+  }
   try {
     const state = await authApi.session();
     session.authenticated = Boolean(state?.authenticated);

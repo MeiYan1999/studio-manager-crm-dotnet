@@ -33,11 +33,25 @@ public sealed class AppData
     public List<AuditLogEntry> AuditLogs { get; set; } = [];
 }
 
+public sealed class WebsiteContent
+{
+    public string BrandName { get; set; } = "mây";
+    public string BrandLabel { get; set; } = "album";
+    public string HowItWorksLabel { get; set; } = "Cách hoạt động";
+    public string SampleAlbumsLabel { get; set; } = "Album mẫu";
+    public string ForStudioLabel { get; set; } = "Dành cho studio";
+    public string HeroTitle { get; set; } = "Mỗi khoảnh khắc, một lời nhớ.";
+    public string HeroDescription { get; set; } = "Mây gom những ngày đẹp nhất vào một album riêng. Bạn chỉ cần mở liên kết, thả tim những tấm ảnh mình yêu và gửi lại cho studio.";
+    public string FooterDescription { get; set; } = "Album ảnh riêng tư, được làm bằng sự chăm chút.";
+    public string FooterPrivacy { get; set; } = "Album được chia sẻ riêng cho từng khách hàng.";
+}
+
 public sealed class StudioSettings
 {
     public string StudioName { get; set; } = "Mây Studio";
     public string ContactEmail { get; set; } = "hello@may.studio";
     public string GoogleApiKey { get; set; } = "";
+    public WebsiteContent Website { get; set; } = new();
 }
 
 public sealed class StudioUser
@@ -858,6 +872,7 @@ public sealed class SaveSettingsRequest
     public string? StudioName { get; set; }
     public string? ContactEmail { get; set; }
     public string? GoogleApiKey { get; set; }
+    public WebsiteContent? Website { get; set; }
     public bool ClearGoogleApiKey { get; set; }
 }
 
@@ -1439,7 +1454,8 @@ public sealed record AdminSettingsDto(
     string StudioName,
     string ContactEmail,
     bool GoogleConfigured,
-    string? GoogleKeyHint);
+    string? GoogleKeyHint,
+    WebsiteContent Website);
 
 public sealed record StudioUserDto(
     string Id,
