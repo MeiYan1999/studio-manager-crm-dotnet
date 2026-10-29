@@ -153,7 +153,8 @@ internal static class ApiMappings
             hint,
             settings.Website,
             settings.LogoUrl,
-            settings.LoginImageUrl);
+            settings.LoginImageUrl,
+            settings.HomeImageUrl);
     }
 
     public static SessionUserDto ToSessionUser(StudioUser user) =>

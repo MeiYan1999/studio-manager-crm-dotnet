@@ -34,6 +34,12 @@ public static class AdminEndpoints
             store.Write(data => data.Settings.LoginImageKey = "");
             return Results.Ok(BuildSettingsDto(store));
         }).AddEndpointFilter<StudioAdminFilter>();
+        group.MapPost("/settings/home-image", UploadHomeImage).AddEndpointFilter<StudioAdminFilter>().DisableAntiforgery();
+        group.MapDelete("/settings/home-image", (DataStore store) =>
+        {
+            store.Write(data => data.Settings.HomeImageKey = "");
+            return Results.Ok(BuildSettingsDto(store));
+        }).AddEndpointFilter<StudioAdminFilter>();
         group.MapGet("/settings", GetSettings).AddEndpointFilter<StudioAdminFilter>();
         group.MapPut("/settings", SaveSettings).AddEndpointFilter<StudioAdminFilter>();
         group.MapGet("/users", GetUsers).AddEndpointFilter<StudioAdminFilter>();
@@ -747,9 +753,7 @@ public static class AdminEndpoints
         await using var memory = new MemoryStream();
         await file.CopyToAsync(memory, context.RequestAborted);
         var bytes = memory.ToArray();
-        var type = bytes.Length >= 8 && bytes.AsSpan(0, 8).SequenceEqual(new byte[] {137,80,78,71,13,10,26,10}) ? "image/png"
-            : bytes.Length >= 3 && bytes[0] == 255 && bytes[1] == 216 && bytes[2] == 255 ? "image/jpeg"
-            : bytes.Length >= 12 && Encoding.ASCII.GetString(bytes, 0, 4) == "RIFF" && Encoding.ASCII.GetString(bytes, 8, 4) == "WEBP" ? "image/webp" : "";
+        var type = StudioImageContentType(bytes);
         if (type.Length == 0) throw new ApiException(400, "Chỉ nhận ảnh PNG, JPG hoặc WebP hợp lệ.", "invalid_logo");
         var key = "logo-" + Guid.NewGuid().ToString("N");
         memory.Position = 0;
@@ -765,14 +769,33 @@ public static class AdminEndpoints
         await using var memory = new MemoryStream();
         await file.CopyToAsync(memory, context.RequestAborted);
         var bytes = memory.ToArray();
-        var type = bytes.Length >= 8 && bytes.AsSpan(0, 8).SequenceEqual(new byte[] {137,80,78,71,13,10,26,10}) ? "image/png"
-            : bytes.Length >= 3 && bytes[0] == 255 && bytes[1] == 216 && bytes[2] == 255 ? "image/jpeg"
-            : bytes.Length >= 12 && Encoding.ASCII.GetString(bytes, 0, 4) == "RIFF" && Encoding.ASCII.GetString(bytes, 8, 4) == "WEBP" ? "image/webp" : "";
+        var type = StudioImageContentType(bytes);
         if (type.Length == 0) throw new ApiException(400, "Chỉ nhận ảnh PNG, JPG hoặc WebP hợp lệ.", "invalid_login-image");
         var key = "login-image-" + Guid.NewGuid().ToString("N");
         memory.Position = 0;
         await storage.PutAsync(key, memory, type, context.RequestAborted);
         store.Write(data => { data.Settings.LoginImageKey = key; data.Settings.LoginImageContentType = type; });
+        return Results.Ok(BuildSettingsDto(store));
+    }
+
+    private static string StudioImageContentType(byte[] bytes) =>
+        bytes.Length >= 8 && bytes.AsSpan(0, 8).SequenceEqual(new byte[] {137,80,78,71,13,10,26,10}) ? "image/png"
+        : bytes.Length >= 3 && bytes[0] == 255 && bytes[1] == 216 && bytes[2] == 255 ? "image/jpeg"
+        : bytes.Length >= 12 && Encoding.ASCII.GetString(bytes, 0, 4) == "RIFF" && Encoding.ASCII.GetString(bytes, 8, 4) == "WEBP" ? "image/webp" : "";
+
+    private static async Task<IResult> UploadHomeImage(IFormFile? file, HttpContext context, DataStore store, IObjectStorage storage)
+    {
+        if (file is null || file.Length == 0 || file.Length > 5 * 1024 * 1024)
+            throw new ApiException(400, "Chọn ảnh trang chủ tối đa 5 MB.", "invalid_home_image");
+        await using var memory = new MemoryStream();
+        await file.CopyToAsync(memory, context.RequestAborted);
+        var type = StudioImageContentType(memory.ToArray());
+        if (type.Length == 0)
+            throw new ApiException(400, "Chỉ nhận ảnh PNG, JPG hoặc WebP hợp lệ.", "invalid_home_image");
+        var key = "home-image-" + Guid.NewGuid().ToString("N");
+        memory.Position = 0;
+        await storage.PutAsync(key, memory, type, context.RequestAborted);
+        store.Write(data => { data.Settings.HomeImageKey = key; data.Settings.HomeImageContentType = type; });
         return Results.Ok(BuildSettingsDto(store));
     }
 
@@ -880,6 +903,8 @@ public static class AdminEndpoints
         {
             StudioName = data.Settings.StudioName,
             ContactEmail = data.Settings.ContactEmail,
+            HomeImageKey = data.Settings.HomeImageKey,
+            HomeImageContentType = data.Settings.HomeImageContentType,
             LoginImageKey = data.Settings.LoginImageKey,
             LoginImageContentType = data.Settings.LoginImageContentType,
             LogoKey = data.Settings.LogoKey,

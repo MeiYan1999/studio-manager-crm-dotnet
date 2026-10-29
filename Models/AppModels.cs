@@ -53,6 +53,9 @@ public sealed class WebsiteContent
 
 public sealed class StudioSettings
 {
+    public string HomeImageKey { get; set; } = "";
+    public string HomeImageContentType { get; set; } = "image/png";
+    public string HomeImageUrl => HomeImageKey.Length > 0 ? "/api/public/home-image?v=" + HomeImageKey : "";
     public string LoginImageKey { get; set; } = "";
     public string LoginImageContentType { get; set; } = "image/png";
     public string LoginImageUrl => LoginImageKey.Length > 0 ? "/api/public/login-image?v=" + LoginImageKey : "";
@@ -1468,7 +1471,8 @@ public sealed record AdminSettingsDto(
     string? GoogleKeyHint,
     WebsiteContent Website,
     string LogoUrl,
-    string LoginImageUrl);
+    string LoginImageUrl,
+    string HomeImageUrl);
 
 public sealed record StudioUserDto(
     string Id,

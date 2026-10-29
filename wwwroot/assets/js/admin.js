@@ -1,4 +1,4 @@
-import { api, authApi, crmApi, salesApi, operationsApi } from './api.js';
+import { api, authApi, crmApi, salesApi, operationsApi, settingsApi } from './api.js';
 import {
   icon,
   escapeHtml,
@@ -3441,6 +3441,41 @@ export function settingsView({ session }) {
         } catch (error) { showToast(error.message, 'error'); }
         finally { button.disabled = false; }
       });
+      let homeImageBusy = false;
+      const saveHomeImage = async file => {
+        if (homeImageBusy) return;
+        if (file && file.size > 5 * 1024 * 1024) {
+          showToast('Ảnh trang chủ tối đa 5 MB.', 'error');
+          return;
+        }
+        homeImageBusy = true;
+        const controls = [...page.querySelectorAll('[data-home-image-upload], [data-home-image-remove], [data-settings-submit]')];
+        controls.forEach(control => { control.disabled = true; });
+        try {
+          const result = file ? await settingsApi.uploadHomeImage(file) : await settingsApi.removeHomeImage();
+          if (disposed) return;
+          settings = result;
+          window.dispatchEvent(new CustomEvent('may:website', { detail: result }));
+          page.querySelector('[data-home-image-preview]').src = result.homeImageUrl || '/assets/img/demo/12.jpg';
+          page.querySelector('[data-home-image-remove]').hidden = !result.homeImageUrl;
+          showToast(file ? 'Đã lưu ảnh trang chủ.' : 'Đã dùng lại ảnh trang chủ mặc định.', 'success');
+        } catch (error) {
+          if (!disposed) showToast(error.message || 'Chưa cập nhật được ảnh trang chủ.', 'error');
+        } finally {
+          homeImageBusy = false;
+          controls.forEach(control => { control.disabled = false; });
+        }
+      };
+      page.addEventListener('change', async event => {
+        if (!event.target.matches('[data-home-image-upload]')) return;
+        const file = event.target.files?.[0];
+        if (!file) return;
+        await saveHomeImage(file);
+        event.target.value = '';
+      });
+      page.addEventListener('click', async event => {
+        if (event.target.closest('[data-home-image-remove]')) await saveHomeImage(null);
+      });
       page.addEventListener('submit', async event => {
         const form = event.target.closest('[data-settings-form]');
         if (!form) return;
@@ -3478,7 +3513,7 @@ export function settingsView({ session }) {
           });
           if (disposed) return;
           settings = result;
-          window.dispatchEvent(new CustomEvent('may:website', { detail: { studioName: result.studioName, website: result.website, logoUrl: result.logoUrl, loginImageUrl: result.loginImageUrl } }));
+          window.dispatchEvent(new CustomEvent('may:website', { detail: { studioName: result.studioName, website: result.website, logoUrl: result.logoUrl, loginImageUrl: result.loginImageUrl, homeImageUrl: result.homeImageUrl } }));
           if (session) {
             session.studioName = result.studioName;
             notifySession(session);
@@ -4274,6 +4309,16 @@ function renderSettings(settings, users, session, staff = []) {
                 <input id="settings-logo" type="file" accept="image/png,image/jpeg,image/webp" data-logo-upload>
                 <p class="field__hint">PNG, JPG hoặc WebP, tối đa 2 MB. Logo được lưu ngay khi tải lên và thay logo chữ trên trang chủ.</p>
                 <button class="btn btn--ghost btn--compact" type="button" data-logo-remove ${settings.logoUrl ? '' : 'hidden'}>Xóa ảnh logo, dùng logo chữ</button>
+              </div>
+              <div class="field field--full">
+                <label for="settings-home-image">Ảnh banner trang chủ</label>
+                <img data-home-image-preview src="${escapeAttr(settings.homeImageUrl || '/assets/img/demo/12.jpg')}" alt="Ảnh banner trang chủ" style="width:100%;max-width:640px;aspect-ratio:16/9;object-fit:cover;border-radius:8px">
+                <input id="settings-home-image" type="file" accept="image/png,image/jpeg,image/webp" data-home-image-upload>
+                <p class="field__hint">PNG, JPG hoặc WebP tối đa 5 MB. Nên dùng ảnh ngang, rộng từ 1600 px, chủ thể ở giữa. Ảnh được lưu ngay khi tải lên, không cần bấm Lưu cài đặt.</p>
+                <div class="form-actions">
+                  <button class="btn btn--ghost btn--compact" type="button" data-home-image-remove ${settings.homeImageUrl ? '' : 'hidden'}>Dùng lại ảnh trang chủ mặc định</button>
+                  <a class="btn btn--text btn--compact" href="/" target="_blank" rel="noopener">Xem trang chủ ${icon('arrowUpRight')}</a>
+                </div>
               </div>
               <div class="field field--full"><label for="settings-brandName">Tên hiển thị trên logo</label><input id="settings-brandName" name="brandName" type="text" maxlength="60" value="${escapeAttr(settings.website?.brandName ?? 'StudioCore')}" required></div>
               <div class="field field--full"><label for="settings-brandLabel">Chữ nhỏ bên cạnh logo</label><input id="settings-brandLabel" name="brandLabel" type="text" maxlength="30" value="${escapeAttr(settings.website?.brandLabel ?? 'album')}"></div>

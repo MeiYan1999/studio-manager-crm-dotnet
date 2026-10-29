@@ -17,9 +17,9 @@ def run():
         return urllib.request.build_opener(urllib.request.HTTPCookieProcessor(http.cookiejar.CookieJar()))
 
     def request(opener, path, body=None, method=None, expected=200):
-        payload = None if body is None else json.dumps(body).encode()
+        payload = json.dumps(body).encode() if isinstance(body, dict) else body
         req = urllib.request.Request(base + path, data=payload, method=method,
-                                     headers={"Content-Type": "application/json"})
+                                     headers={"Content-Type": "multipart/form-data; boundary=employee-home-test" if path.endswith("/home-image") and method == "POST" else "application/json"})
         try:
             response = opener.open(req, timeout=20)
         except urllib.error.HTTPError as error:
@@ -47,6 +47,8 @@ def run():
         request(employee, "/api/auth/change-password", {"currentPassword": password, "newPassword": replacement})
         request(employee, "/api/admin/albums")
         request(employee, "/api/admin/settings", expected=403)
+        request(employee, "/api/admin/settings/home-image", method="DELETE", expected=403)
+        request(employee, "/api/admin/settings/home-image", body=b"--employee-home-test--\r\n", method="POST", expected=403)
         request(employee, "/api/admin/finance/entries", expected=403)
         request(employee, "/api/admin/users", expected=403)
         request(employee, "/api/auth/logout", method="POST", expected=204)

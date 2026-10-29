@@ -98,6 +98,15 @@ export const authApi = {
   logout: () => api('/api/auth/logout', { method: 'POST' })
 };
 
+export const settingsApi = {
+  uploadHomeImage: file => {
+    const form = new FormData();
+    form.append('file', file);
+    return uploadForm('/api/admin/settings/home-image', form);
+  },
+  removeHomeImage: () => api('/api/admin/settings/home-image', { method: 'DELETE' })
+};
+
 export const crmApi = {
   summary: () => api('/api/admin/crm/summary'),
   audit: (params = {}) => {

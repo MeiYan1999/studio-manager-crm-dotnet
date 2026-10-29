@@ -51,6 +51,29 @@ public sealed class DataStoreTests : IDisposable
         Assert.Equal(8, Open().Read(current => current.SchemaVersion));
     }
 
+    [Fact]
+    public void ExistingSettingsGetDefaultHomeImageAndNewMetadataSurvivesReopening()
+    {
+        Directory.CreateDirectory(directory);
+        File.WriteAllText(Path.Combine(directory, "store.json"),
+            """{"schemaVersion":8,"settings":{"studioName":"Existing studio","logoKey":"old-logo","loginImageKey":"old-login"}}""");
+        var store = Open();
+        Assert.Equal(8, store.Read(data => data.SchemaVersion));
+        Assert.Equal("", store.Read(data => data.Settings.HomeImageUrl));
+        store.Write(data =>
+        {
+            data.Settings.HomeImageKey = "home-image-test";
+            data.Settings.HomeImageContentType = "image/jpeg";
+        });
+        var reopened = Open();
+        Assert.Equal("/api/public/home-image?v=home-image-test", reopened.Read(data => data.Settings.HomeImageUrl));
+        Assert.Equal("image/jpeg", reopened.Read(data => data.Settings.HomeImageContentType));
+        Assert.Equal("Existing studio", reopened.Read(data => data.Settings.StudioName));
+        Assert.Equal("old-logo", reopened.Read(data => data.Settings.LogoKey));
+        Assert.Equal("old-login", reopened.Read(data => data.Settings.LoginImageKey));
+        Assert.Equal(8, reopened.Read(data => data.SchemaVersion));
+    }
+
     public void Dispose()
     {
         if (Directory.Exists(directory)) Directory.Delete(directory, recursive: true);

@@ -348,8 +348,8 @@ function landingView() {
       <main>
         <section class="landing-hero" aria-labelledby="landing-title">
           <figure class="landing-hero__visual">
-            <img class="landing-hero__image" src="/assets/img/demo/12.jpg"
-                 alt="Cặp đôi tựa vai bên hồ trong ánh hoàng hôn" width="1600" height="1067"
+            <img class="landing-hero__image" src="${escapeAttr(websiteSettings.homeImageUrl || '/assets/img/demo/12.jpg')}"
+                 alt="Ảnh giới thiệu của ${escapeAttr(websiteSettings.studioName || 'StudioCore')}" width="1600" height="1067"
                  fetchpriority="high" decoding="async">
             <figcaption class="landing-hero__caption">
               <div>

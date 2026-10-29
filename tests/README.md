@@ -13,13 +13,16 @@ python3 tests/run_backend.py
 
 - xUnit: hash mật khẩu/malformed hashes; quyền mặc định/quyền tường minh; tính giờ công,
   làm tròn 15 phút, đi muộn/về sớm theo ca; phân tích link Drive; XLSX tiếng Việt và text
-  giống công thức; lưu/mở lại JSON, cô lập ReadClone và migration khoản chi schema 7 → 8.
+  giống công thức; lưu/mở lại JSON, cô lập ReadClone, tương thích dữ liệu cũ khi thêm ảnh trang chủ và migration khoản chi schema 7 → 8.
 - `auth_smoke.py`: chưa đăng nhập, mật khẩu sai, bắt buộc đổi mật khẩu, quyền theo phân hệ,
   logout, mật khẩu cũ sau đổi, tài khoản bị khóa và session đang tồn tại.
 - `finance_smoke.py`: tổng thu/chi/lợi nhuận; sửa không hợp lệ không đổi dữ liệu;
   bộ lọc, ảnh/chú thích, giới hạn 5 MB/6 ảnh; API ảnh có xác thực; nội dung XLSX,
   xuất hợp đồng và đổi tên studio.
-- `storage_s3_smoke.py`: upload logo/ảnh đăng nhập đến S3 giả lập; kiểm tra chữ ký SigV4,
+- `home_image_smoke.py`: upload/thay/reset banner, ảnh công khai và Content-Type,
+  URL có version mới khi thay ảnh, giữ ảnh sau khi lưu cài đặt khác, từ chối file trống/sai
+  định dạng/quá 5 MB và giữ độc lập logo/ảnh đăng nhập. Auth smoke kiểm tra employee bị chặn.
+- `storage_s3_smoke.py`: upload logo/ảnh đăng nhập/ảnh trang chủ đến S3 giả lập; kiểm tra chữ ký SigV4,
   payload không chunked, lỗi nhà cung cấp được chuyển thông báo an toàn và giữ ảnh cũ khi lỗi.
 
 `run_backend.py` khởi động bản Release trên cổng loopback tạm, dùng thư mục dữ liệu tạm,

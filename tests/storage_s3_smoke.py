@@ -91,7 +91,7 @@ with tempfile.TemporaryDirectory(prefix='crm-s3-test-') as folder:
         assert request('/api/auth/login', {'username':'admin','password':password})[0] == 200
         boundary = 'testboundary'
         body = (f'--{boundary}\r\nContent-Disposition: form-data; name="file"; filename="test.png"\r\nContent-Type: image/png\r\n\r\n'.encode() + png + f'\r\n--{boundary}--\r\n'.encode())
-        for route in ['logo', 'login-image']:
+        for route in ['logo', 'login-image', 'home-image']:
             mode = 'ok'
             status, saved = request('/api/admin/settings/'+route, body, 'POST', 'multipart/form-data; boundary='+boundary)
             assert status == 200, saved
@@ -106,7 +106,8 @@ with tempfile.TemporaryDirectory(prefix='crm-s3-test-') as folder:
                 current = request('/api/admin/settings')[1]
                 assert current['logoUrl'] == saved['logoUrl']
                 assert current['loginImageUrl'] == saved['loginImageUrl']
-        print('Passed: signed non-chunked S3 uploads, logo/login routes, safe provider errors, previous image preserved on failure.')
+                assert current['homeImageUrl'] == saved['homeImageUrl']
+        print('Passed: signed non-chunked S3 uploads, logo/login/home routes, safe provider errors, previous image preserved on failure.')
     finally:
         process.terminate()
         try:

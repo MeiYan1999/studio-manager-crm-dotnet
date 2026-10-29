@@ -373,6 +373,18 @@ Tên service/database trong `render.yaml`, tên repository GitHub, URL Render v�
 được giữ nguyên để không tạo lại tài nguyên hoặc thay đổi cấu hình đang triển khai. Dockerfile
 đã trỏ đến `StudioCore.csproj` và `StudioCore.dll`.
 
+## Đổi ảnh banner trang chủ
+
+Quản trị viên mở **Cài đặt studio → Trang chủ → Ảnh banner trang chủ**, chọn ảnh PNG,
+JPG hoặc WebP tối đa 5 MB. Nên dùng ảnh ngang rộng từ 1600 px, đặt chủ thể ở giữa để
+hiển thị tốt trên desktop và điện thoại. Ảnh được lưu ngay khi tải lên; không cần bấm
+Lưu cài đặt. Có khung xem trước, liên kết Xem trang chủ và nút Dùng lại ảnh trang chủ mặc định.
+
+Ảnh lưu qua storage local/S3 đang cấu hình, độc lập với logo và ảnh đăng nhập. Chỉ admin
+được đổi/xóa ảnh; khách truy cập có thể đọc ảnh để hiển thị trang chủ. Metadata được bổ sung
+vào settings JSON hiện có, không đổi schemaVersion hoặc tạo bảng database mới. Dữ liệu cũ
+không có ảnh tùy chỉnh tiếp tục dùng ảnh demo mặc định.
+
 ## Preview local để review tính năng
 
 Clone repository rồi chạy từ thư mục gốc:

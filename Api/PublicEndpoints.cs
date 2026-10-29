@@ -12,6 +12,7 @@ public static class PublicEndpoints
             data.Settings.StudioName,
             data.Settings.LogoUrl,
             data.Settings.LoginImageUrl,
+            data.Settings.HomeImageUrl,
             data.Settings.Website
         })));
 
@@ -34,6 +35,16 @@ public static class PublicEndpoints
             context.Response.Headers.XContentTypeOptions = "nosniff";
             context.Response.Headers.CacheControl = "no-cache";
             return Results.Stream(stored.Content, logo.LoginImageContentType);
+        });
+        app.MapGet("/api/public/home-image", async (HttpContext context, DataStore store, IObjectStorage storage) =>
+        {
+            var image = store.Read(data => new { data.Settings.HomeImageKey, data.Settings.HomeImageContentType });
+            if (image.HomeImageKey.Length == 0) return Results.NotFound();
+            var stored = await storage.GetAsync(image.HomeImageKey, context.RequestAborted);
+            if (stored is null) return Results.NotFound();
+            context.Response.Headers.XContentTypeOptions = "nosniff";
+            context.Response.Headers.CacheControl = "no-cache";
+            return Results.Stream(stored.Content, image.HomeImageContentType);
         });
         var group = app.MapGroup("/api/public/albums");
 
