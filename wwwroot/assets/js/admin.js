@@ -3469,7 +3469,7 @@ export function settingsView({ session }) {
           const result = await api('/api/admin/settings', {
             method: 'PUT',
             body: {
-              website: Object.fromEntries(["loginName", "loginQuote", "loginTitle", "brandName", "brandLabel", "howItWorksLabel", "sampleAlbumsLabel", "forStudioLabel", "heroTitle", "heroDescription", "footerDescription", "footerPrivacy"].map(name => [name, form.elements.namedItem(name).value.trim()])),
+              website: Object.fromEntries(["loadingName", "loadingText", "loginName", "loginQuote", "loginTitle", "brandName", "brandLabel", "howItWorksLabel", "sampleAlbumsLabel", "forStudioLabel", "heroTitle", "heroDescription", "footerDescription", "footerPrivacy"].map(name => [name, form.elements.namedItem(name).value.trim()])),
               studioName: studioName.value.trim(),
               contactEmail: contactEmail.value.trim(),
               googleApiKey: apiKey.value.trim() || null,
@@ -4287,6 +4287,13 @@ function renderSettings(settings, users, session, staff = []) {
             </div>
           </section>
 
+          <section class="panel settings-section">
+            <header class="panel__head"><div><h2>Màn hình tải trang</h2><p>Nội dung xuất hiện ngay khi mở hoặc tải lại website.</p></div></header>
+            <div class="form-grid">
+              <div class="field field--full"><label for="settings-loadingName">Tên trên màn hình tải</label><input id="settings-loadingName" name="loadingName" maxlength="60" value="${escapeAttr(settings.website?.loadingName || '')}"><p class="field__hint">Để trống để dùng tên hiển thị trên logo.</p></div>
+              <div class="field field--full"><label for="settings-loadingText">Dòng thông báo tải trang</label><input id="settings-loadingText" name="loadingText" maxlength="160" value="${escapeAttr(settings.website?.loadingText ?? 'Đang mở studio…')}"></div>
+            </div>
+          </section>
           <section class="panel settings-section">
             <header class="panel__head"><div><h2>Trang đăng nhập</h2><p>Tùy chỉnh tên và ảnh giới thiệu trên màn hình đăng nhập. Để trống tên để dùng tên studio.</p></div></header>
             <div class="form-grid">

@@ -35,6 +35,8 @@ public sealed class AppData
 
 public sealed class WebsiteContent
 {
+    public string LoadingName { get; set; } = "";
+    public string LoadingText { get; set; } = "Đang mở studio…";
     public string LoginName { get; set; } = "";
     public string LoginQuote { get; set; } = "Ảnh đẹp nhất là ảnh khiến ta nhớ lại cảm giác của ngày hôm đó.";
     public string LoginTitle { get; set; } = "Chào mừng trở lại.";

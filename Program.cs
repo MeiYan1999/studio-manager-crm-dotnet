@@ -100,7 +100,32 @@ app.Use(async (context, next) =>
     }
 });
 
-app.UseDefaultFiles();
+async Task ServeAppShell(HttpContext context)
+{
+    var settings = app.Services.GetRequiredService<DataStore>().Read(data => new
+    {
+        Name = string.IsNullOrWhiteSpace(data.Settings.Website.LoadingName)
+            ? data.Settings.Website.BrandName : data.Settings.Website.LoadingName,
+        Text = data.Settings.Website.LoadingText
+    });
+    var html = await File.ReadAllTextAsync(Path.Combine(app.Environment.WebRootPath!, "index.html"), context.RequestAborted);
+    html = html.Replace("data-loading-name><span>", "data-loading-name>" + System.Net.WebUtility.HtmlEncode(settings.Name) + "<span>")
+        .Replace("<p data-loading-text></p>", "<p data-loading-text>" + System.Net.WebUtility.HtmlEncode(settings.Text) + "</p>");
+    context.Response.ContentType = "text/html; charset=utf-8";
+    context.Response.Headers.CacheControl = "no-store";
+    await context.Response.WriteAsync(html, context.RequestAborted);
+}
+
+app.Use(async (context, next) =>
+{
+    if ((HttpMethods.IsGet(context.Request.Method) || HttpMethods.IsHead(context.Request.Method)) &&
+        (context.Request.Path == "/" || context.Request.Path == "/index.html"))
+    {
+        await ServeAppShell(context);
+        return;
+    }
+    await next(context);
+});
 app.UseStaticFiles(new StaticFileOptions
 {
     OnPrepareResponse = context =>
@@ -149,11 +174,7 @@ app.MapFallback(async context =>
         return;
     }
 
-    context.Response.ContentType = "text/html; charset=utf-8";
-    context.Response.Headers.CacheControl = "no-cache";
-    await context.Response.SendFileAsync(
-        Path.Combine(app.Environment.WebRootPath!, "index.html"),
-        context.RequestAborted);
+    await ServeAppShell(context);
 });
 
 var store = app.Services.GetRequiredService<DataStore>();

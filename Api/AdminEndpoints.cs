@@ -800,6 +800,10 @@ public static class AdminEndpoints
             if (request.Website.LoginQuote.Length > 600) throw new ApiException(400, "Câu giới thiệu trên ảnh tối đa 600 ký tự.", "invalid_website_content");
             request.Website.LoginTitle = request.Website.LoginTitle?.Trim() ?? "";
             if (request.Website.LoginTitle.Length > 160) throw new ApiException(400, "Tiêu đề chào mừng tối đa 160 ký tự.", "invalid_website_content");
+            request.Website.LoadingName = request.Website.LoadingName?.Trim() ?? "";
+            request.Website.LoadingText = request.Website.LoadingText?.Trim() ?? "";
+            if (request.Website.LoadingName.Length > 60 || request.Website.LoadingText.Length > 160)
+                throw new ApiException(400, "Tên màn hình tải tối đa 60 ký tự, lời nhắn tối đa 160 ký tự.", "invalid_loading_text");
             request.Website.BrandName = request.Website.BrandName?.Trim() ?? "";
             if (request.Website.BrandName.Length > 60)
                 throw new ApiException(400, "Nội dung tên hiển thị trên logo quá dài (tối đa 60 ký tự).", "invalid_website_content");
