@@ -319,3 +319,36 @@ dialog.dialog--concept { max-width: min(1100px, 96vw); width: 100%; padding: 0; 
   .concept-back { font-size: 11px; padding: 10px; }
   .concept-lightbox { padding: 50px 8px 12px; }
 }
+
+.price-section { background:#f9f6ed; padding:90px 24px; }
+.price-inner { max-width:1240px; margin:auto; }
+.price-heading,.price-group>header { text-align:center; }
+.price-heading h2,.price-group h3 { font-family:var(--font-display, Georgia, serif); text-transform:uppercase; font-weight:400; }
+.price-heading h2 { font-size:clamp(38px,5vw,64px); margin:10px 0; }
+.price-heading p,.price-group header p { color:#655f55; }
+.price-tabs { display:flex; gap:10px; flex-wrap:wrap; justify-content:center; margin:36px 0 20px; }
+.price-tabs a { background:#fff; border-radius:99px; padding:10px 18px; text-decoration:none; color:#282722; font-size:13px; }
+.price-group { padding-top:70px; scroll-margin-top:20px; }
+.price-group h3 { font-size:clamp(28px,3vw,42px); margin:0; }
+.price-group header p { margin:10px 0 35px; }
+.price-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:24px; }
+.price-card { background:#fff; border-radius:24px; padding:34px; box-shadow:0 14px 36px #5145290c; }
+.price-card h4 { font-family:var(--font-display, Georgia, serif); font-size:27px; line-height:1.15; font-weight:400; text-transform:uppercase; margin:0 0 14px; }
+.price-subtitle { font-size:14px; min-height:20px; }
+.price-value { padding:24px 0; border-bottom:1px solid #eeeae3; }
+.price-value strong { font-size:13px; text-transform:uppercase; }
+.price-value p { font-family:Georgia,serif; font-size:22px; line-height:1.35; margin:7px 0 0; }
+.price-card ul { padding:10px 0 0; margin:0; list-style:none; }
+.price-card li { padding:7px 0 7px 22px; position:relative; font-size:14px; }
+.price-card li:before { content:'✓'; position:absolute; left:0; }
+@media(max-width:900px) { .price-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } }
+@media(max-width:580px) { .price-grid { grid-template-columns:1fr; } .price-section { padding:60px 16px; } }
+.price-admin { padding:24px; margin-bottom:24px; }
+.price-admin-heading { display:flex; justify-content:space-between; gap:20px; flex-wrap:wrap; margin-bottom:16px; }
+.price-admin-heading h2 { margin:0 0 6px; }
+.price-admin-heading p { margin:0; }
+.price-admin-group { border-top:1px solid #e5e5e5; }
+.price-admin-group summary { cursor:pointer; font-weight:600; padding:14px 0; }
+.price-admin-row { display:flex; align-items:center; justify-content:space-between; gap:15px; padding:10px 0; border-top:1px solid #f0f0f0; }
+.price-admin-row span,.price-admin-row small { display:block; }
+.price-admin-row small { color:#777; margin-top:4px; }

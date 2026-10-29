@@ -12,6 +12,7 @@ public sealed class AppData
     public TaskBoard Board { get; set; } = new();
     public List<Customer> Customers { get; set; } = [];
     public List<ServicePackage> Packages { get; set; } = [];
+    public List<PriceGroup> PriceCatalog { get; set; } = PriceCatalogDefaults.Create();
     public List<StaffMember> Staff { get; set; } = [];
     public List<Booking> Bookings { get; set; } = [];
     public List<Order> Orders { get; set; } = [];

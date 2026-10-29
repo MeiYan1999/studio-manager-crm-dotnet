@@ -49,7 +49,7 @@ def main():
                     if time.monotonic() >= deadline:
                         raise RuntimeError("Disposable server did not become ready within 30 seconds")
                     time.sleep(0.1)
-                for script in ("auth_smoke.py", "finance_smoke.py", "home_image_smoke.py", "concepts_smoke.py"):
+                for script in ("auth_smoke.py", "finance_smoke.py", "home_image_smoke.py", "concepts_smoke.py", "prices_smoke.py"):
                     subprocess.run([sys.executable, str(ROOT / "tests" / script)], cwd=ROOT, env=env, check=True)
                 subprocess.run([sys.executable, str(ROOT / "tests/storage_s3_smoke.py")], cwd=ROOT, env=env, check=True)
             finally:

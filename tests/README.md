@@ -81,3 +81,5 @@ CRM_TEST_URL=http://127.0.0.1:5080 NODE_PATH=/tmp/may-crm-test-deps/node_modules
 Bài kiểm thử đổi và khôi phục cài đặt: logo, tên studio, lời giới thiệu,
 điều hướng về trang chủ sau khi lưu, tải lại trang, nội dung dạng văn bản,
 kiểm tra độ dài/tên trống và bố cục điện thoại.
+
+- `prices_smoke.py`: kiểm tra bảng giá mặc định, quyền sửa, ẩn/hiện và tính độc lập với gói đặt lịch.

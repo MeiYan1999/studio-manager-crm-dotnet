@@ -1,3 +1,4 @@
+import { mountPrices } from './prices.js';
 import { mountConceptCards, conceptGalleryView } from './concepts.js';
 import { api, authApi } from './api.js';
 import {
@@ -340,6 +341,7 @@ function landingView() {
   const brand = landingBrand();
   const conceptLabel = !content.sampleAlbumsLabel || content.sampleAlbumsLabel === 'Album mẫu' ? 'Concept' : text('sampleAlbumsLabel', 'Concept');
   let disposeConcepts = () => {};
+  let disposePrices = () => {};
   const html = `
     <div class="landing">
       <header class="site-nav">
@@ -347,6 +349,7 @@ function landingView() {
         <nav class="site-nav__links" aria-label="Điều hướng chính">
           <a href="#cach-hoat-dong">${text('howItWorksLabel', 'Cách hoạt động')}</a>
           <a href="#concepts">${conceptLabel}</a>
+          <a href="#bang-gia">Bảng giá</a>
           <a href="#danh-cho-studio">${text('forStudioLabel', 'Dành cho studio')}</a>
         </nav>
         <div class="site-nav__actions">
@@ -358,6 +361,7 @@ function landingView() {
       <div class="site-nav__drawer" data-mobile-menu>
         <a href="#cach-hoat-dong">${text('howItWorksLabel', 'Cách hoạt động')}</a>
         <a href="#concepts">${conceptLabel}</a>
+        <a href="#bang-gia">Bảng giá</a>
         <a href="#danh-cho-studio">${text('forStudioLabel', 'Dành cho studio')}</a>
         <a href="/admin/login">Đăng nhập studio</a>
       </div>
@@ -424,6 +428,8 @@ function landingView() {
           </div>
         </section>
 
+        <section class="price-section" id="bang-gia"><div class="price-inner"><header class="price-heading"><p class="eyebrow">Dịch vụ studio</p><h2>Bảng giá</h2><p>Chọn gói chụp phù hợp với những khoảnh khắc của bạn.</p></header><div data-price-catalog aria-live="polite">Đang tải bảng giá…</div></div></section>
+
         <section class="landing-section concept-section" id="concepts">
           <span id="album-mau" class="concept-anchor" aria-hidden="true"></span>
           <div class="concept-section__heading"><p class="eyebrow">Khám phá concept</p><h2>5 lựa chọn<br><em>Cho những khoảnh khắc bạn muốn lưu giữ</em></h2></div>
@@ -487,6 +493,7 @@ function landingView() {
     html,
     mount(root) {
       disposeConcepts = mountConceptCards(root.querySelector('[data-concept-grid]'));
+      disposePrices = mountPrices(root.querySelector('[data-price-catalog]'));
       const toggle = root.querySelector('[data-menu-toggle]');
       const menu = root.querySelector('[data-mobile-menu]');
       toggle?.addEventListener('click', () => {
@@ -504,6 +511,7 @@ function landingView() {
     },
     cleanup() {
       disposeConcepts();
+      disposePrices();
       document.body.classList.remove('nav-open');
     }
   };

@@ -75,6 +75,18 @@ public static class CrmEndpoints
         group.MapPut("/customers/{id}", UpdateCustomer).AddEndpointFilter(customers);
         group.MapDelete("/customers/{id}", DeleteCustomer).AddEndpointFilter(customers);
 
+        group.MapGet("/price-catalog", (DataStore store) => Results.Ok(store.Read(data => data.PriceCatalog))).AddEndpointFilter(packages);
+        group.MapPut("/price-catalog/{groupId}/{itemId}", (string groupId, string itemId, PriceItem request, DataStore store) =>
+        {
+            if (string.IsNullOrWhiteSpace(request.Name) || request.Name.Length > 120 || (request.Subtitle?.Length ?? 0) > 500 || (request.PriceText?.Length ?? 0) > 500 || (request.Benefits?.Length ?? 0) > 4000)
+                throw new ApiException(400, "Nội dung bảng giá chưa hợp lệ.", "invalid_price_item");
+            return Results.Ok(store.Write(data => {
+                var item = data.PriceCatalog.FirstOrDefault(g => g.Id == groupId)?.Items.FirstOrDefault(i => i.Id == itemId)
+                    ?? throw new ApiException(404, "Không tìm thấy gói trong bảng giá.", "price_item_not_found");
+                item.Name = request.Name.Trim(); item.Subtitle = (request.Subtitle ?? "").Trim(); item.PriceText = (request.PriceText ?? "").Trim(); item.Benefits = (request.Benefits ?? "").Trim(); item.Visible = request.Visible;
+                return item;
+            }));
+        }).AddEndpointFilter(packages);
         group.MapGet("/packages", GetPackages).AddEndpointFilter(packagesRead);
         group.MapPost("/packages", CreatePackage).AddEndpointFilter(packages);
         group.MapPut("/packages/{id}", UpdatePackage).AddEndpointFilter(packages);

@@ -1,3 +1,4 @@
+import { mountPriceEditor } from './prices.js';
 import { api, crmApi } from './api.js';
 import { adminShell, mountAdminShell, pageHead, hasPermission } from './admin.js';
 import {
@@ -667,6 +668,7 @@ export function packagesView({ session }) {
   let teardown = () => {};
   let disposed = false;
   let packages = [];
+  let disposePriceEditor = () => {};
   let query = '';
   let showArchived = false;
   let loading = false;
@@ -679,6 +681,7 @@ export function packagesView({ session }) {
     lead: 'Chuẩn hoá giá, thời lượng và quyền lợi để mỗi lịch chụp được báo giá nhất quán.',
     actions: `<button class="btn btn--primary" type="button" data-action="package-create">${icon('plus')} Thêm gói dịch vụ</button>`,
     body: `
+      <section class="panel price-admin" data-price-editor>Đang tải bảng giá…</section>
       <section class="crm-overview" data-package-stats></section>
       <section class="panel crm-toolbar" aria-label="Tìm gói dịch vụ">
         <label class="crm-search">
@@ -938,6 +941,7 @@ export function packagesView({ session }) {
     mount(root) {
       teardown = mountAdminShell(root, session);
       const container = root.querySelector('[data-crm-page]');
+      disposePriceEditor = mountPriceEditor(root.querySelector('[data-price-editor]'));
       let searchTimer = null;
 
       container.addEventListener('click', event => {
@@ -975,6 +979,7 @@ export function packagesView({ session }) {
     },
     cleanup() {
       disposed = true;
+      disposePriceEditor();
       teardown();
     }
   };

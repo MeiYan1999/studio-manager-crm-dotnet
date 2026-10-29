@@ -46,6 +46,7 @@ public static class PublicEndpoints
             context.Response.Headers.CacheControl = "no-cache";
             return Results.Stream(stored.Content, image.HomeImageContentType);
         });
+        app.MapGet("/api/public/prices", (DataStore store) => Results.Ok(store.Read(data => data.PriceCatalog.Select(group => new { group.Id, group.Title, group.Description, Items = group.Items.Where(item => item.Visible).ToList() }).ToList())));
         app.MapGet("/api/public/concepts", (DataStore store) =>
             Results.Ok(store.Read(ConceptShowcase.List)));
         app.MapGet("/api/public/concepts/{category}", (string category, DataStore store) =>

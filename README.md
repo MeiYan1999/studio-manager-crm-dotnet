@@ -428,3 +428,7 @@ Xem [hướng dẫn và checklist review](docs/LOCAL-REVIEW.md) và
 Dữ liệu production không nằm trong GitHub: clone source không tải theo tên studio,
 logo, khách hàng hoặc đơn hàng trên Render. Preview luôn dùng dữ liệu riêng; tên mặc định
 StudioCore không ghi đè tên studio đã lưu trong database.
+
+### Bảng giá trên website
+
+Trang chủ có bảng giá năm nhóm từ nội dung mẫu. Vào **Gói Chụp → Bảng giá trên website**, mở nhóm và chọn **Sửa** để đổi tên, mô tả, giá, quyền lợi hoặc ẩn gói. Bảng giá website lưu riêng với gói dùng trong lịch chụp; sửa bảng giá không tự đổi giá lịch hay đơn hàng.
