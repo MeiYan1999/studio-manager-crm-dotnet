@@ -10,6 +10,8 @@ import urllib.request
 import urllib.error
 import http.cookiejar
 import base64
+import hashlib
+import hmac
 from pathlib import Path
 
 root = Path(__file__).resolve().parents[1]
@@ -21,6 +23,24 @@ class S3(http.server.BaseHTTPRequestHandler):
     def log_message(self, *args): pass
     def do_PUT(self):
         data = self.rfile.read(int(self.headers.get('Content-Length', 0)))
+        payload_hash = hashlib.sha256(data).hexdigest()
+        assert self.headers['x-amz-content-sha256'] == payload_hash
+        amz_date = self.headers['x-amz-date']
+        date = amz_date[:8]
+        scope = f'{date}/ap-southeast-1/s3/aws4_request'
+        signed = 'host;x-amz-content-sha256;x-amz-date'
+        canonical_headers = (f'host:{self.headers["Host"]}\n'
+                             f'x-amz-content-sha256:{payload_hash}\n'
+                             f'x-amz-date:{amz_date}\n')
+        canonical = f'PUT\n{self.path}\n\n{canonical_headers}\n{signed}\n{payload_hash}'
+        string_to_sign = ('AWS4-HMAC-SHA256\n' + amz_date + '\n' + scope + '\n' +
+                          hashlib.sha256(canonical.encode()).hexdigest())
+        sign = lambda key, value: hmac.new(key, value.encode(), hashlib.sha256).digest()
+        signing_key = sign(sign(sign(sign(b'AWS4test-secret', date), 'ap-southeast-1'), 's3'), 'aws4_request')
+        signature = hmac.new(signing_key, string_to_sign.encode(), hashlib.sha256).hexdigest()
+        assert self.headers['Authorization'] == (
+            f'AWS4-HMAC-SHA256 Credential=test-access/{scope}, '
+            f'SignedHeaders={signed}, Signature={signature}')
         received.append((dict(self.headers), data))
         if mode == 'ok':
             self.send_response(200)

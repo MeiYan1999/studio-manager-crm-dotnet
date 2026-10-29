@@ -2266,7 +2266,7 @@ public static class OperationsEndpoints
         {
             await storage.DeleteAsync(name, cancellationToken);
         }
-        catch (Exception exception) when (exception is IOException or Amazon.S3.AmazonS3Exception)
+        catch (Exception exception) when (exception is IOException or ApiException)
         {
             // Ảnh mồ côi không chặn thao tác xoá khoản thu chi.
         }
