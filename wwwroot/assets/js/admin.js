@@ -3372,6 +3372,39 @@ export function settingsView({ session }) {
         }
       };
 
+      page.addEventListener('change', async event => {
+        if (!event.target.matches('[data-logo-upload]')) return;
+        const file = event.target.files?.[0];
+        if (!file) return;
+        if (file.size > 2 * 1024 * 1024) { showToast('Logo tối đa 2 MB.', 'error'); return; }
+        event.target.disabled = true;
+        try {
+          const body = new FormData(); body.append('file', file);
+          const response = await fetch('/api/admin/settings/logo', { method: 'POST', body, credentials: 'same-origin' });
+          const result = await response.json();
+          if (!response.ok) throw new Error(result.error || 'Chưa tải được logo.');
+          settings = result;
+          window.dispatchEvent(new CustomEvent('may:website', { detail: result }));
+          const preview = page.querySelector('[data-logo-preview]');
+          preview.src = result.logoUrl; preview.hidden = false;
+          page.querySelector('[data-logo-remove]').hidden = false;
+          showToast('Đã lưu logo.', 'success');
+        } catch (error) { showToast(error.message, 'error'); }
+        finally { event.target.disabled = false; event.target.value = ''; }
+      });
+      page.addEventListener('click', async event => {
+        const button = event.target.closest('[data-logo-remove]');
+        if (!button) return;
+        button.disabled = true;
+        try {
+          settings = await api('/api/admin/settings/logo', { method: 'DELETE' });
+          window.dispatchEvent(new CustomEvent('may:website', { detail: settings }));
+          page.querySelector('[data-logo-preview]').hidden = true;
+          button.hidden = true;
+          showToast('Đã chuyển về logo chữ.', 'success');
+        } catch (error) { showToast(error.message, 'error'); }
+        finally { button.disabled = false; }
+      });
       page.addEventListener('submit', async event => {
         const form = event.target.closest('[data-settings-form]');
         if (!form) return;
@@ -3409,7 +3442,7 @@ export function settingsView({ session }) {
           });
           if (disposed) return;
           settings = result;
-          window.dispatchEvent(new CustomEvent('may:website', { detail: { studioName: result.studioName, website: result.website } }));
+          window.dispatchEvent(new CustomEvent('may:website', { detail: { studioName: result.studioName, website: result.website, logoUrl: result.logoUrl } }));
           if (session) {
             session.studioName = result.studioName;
             notifySession(session);
@@ -4199,6 +4232,13 @@ function renderSettings(settings, users, session, staff = []) {
           <section class="panel settings-section">
             <header class="panel__head"><div><p class="eyebrow">Trang chủ</p><h2>Thương hiệu &amp; lời giới thiệu</h2><p>Đổi logo chữ, các nhãn menu và lời giới thiệu ở đầu, chân trang. Tên studio phía trên dùng cho dòng bản quyền.</p></div></header>
             <div class="form-grid">
+              <div class="field field--full">
+                <label for="settings-logo">Ảnh logo</label>
+                <img data-logo-preview src="${escapeAttr(settings.logoUrl || '')}" alt="Logo studio" style="max-width:180px;height:64px;object-fit:contain" ${settings.logoUrl ? '' : 'hidden'}>
+                <input id="settings-logo" type="file" accept="image/png,image/jpeg,image/webp" data-logo-upload>
+                <p class="field__hint">PNG, JPG hoặc WebP, tối đa 2 MB. Logo được lưu ngay khi tải lên và thay logo chữ trên trang chủ.</p>
+                <button class="btn btn--ghost btn--compact" type="button" data-logo-remove ${settings.logoUrl ? '' : 'hidden'}>Xóa ảnh logo, dùng logo chữ</button>
+              </div>
               <div class="field field--full"><label for="settings-brandName">Tên hiển thị trên logo</label><input id="settings-brandName" name="brandName" type="text" maxlength="60" value="${escapeAttr(settings.website?.brandName ?? 'mây')}" required></div>
               <div class="field field--full"><label for="settings-brandLabel">Chữ nhỏ bên cạnh logo</label><input id="settings-brandLabel" name="brandLabel" type="text" maxlength="30" value="${escapeAttr(settings.website?.brandLabel ?? 'album')}"></div>
               <div class="field field--full"><label for="settings-howItWorksLabel">Menu: Cách hoạt động</label><input id="settings-howItWorksLabel" name="howItWorksLabel" type="text" maxlength="60" value="${escapeAttr(settings.website?.howItWorksLabel ?? 'Cách hoạt động')}"></div>

@@ -10,9 +10,20 @@ public static class PublicEndpoints
         app.MapGet("/api/public/website", (DataStore store) => Results.Ok(store.Read(data => new
         {
             data.Settings.StudioName,
+            data.Settings.LogoUrl,
             data.Settings.Website
         })));
 
+        app.MapGet("/api/public/logo", async (HttpContext context, DataStore store, IObjectStorage storage) =>
+        {
+            var logo = store.Read(data => new { data.Settings.LogoKey, data.Settings.LogoContentType });
+            if (logo.LogoKey.Length == 0) return Results.NotFound();
+            var stored = await storage.GetAsync(logo.LogoKey, context.RequestAborted);
+            if (stored is null) return Results.NotFound();
+            context.Response.Headers.XContentTypeOptions = "nosniff";
+            context.Response.Headers.CacheControl = "no-cache";
+            return Results.Stream(stored.Content, logo.LogoContentType);
+        });
         var group = app.MapGroup("/api/public/albums");
 
         group.MapGet("/{token}", (string token, DataStore store) =>

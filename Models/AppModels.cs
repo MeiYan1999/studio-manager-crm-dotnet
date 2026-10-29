@@ -48,6 +48,9 @@ public sealed class WebsiteContent
 
 public sealed class StudioSettings
 {
+    public string LogoKey { get; set; } = "";
+    public string LogoContentType { get; set; } = "image/png";
+    public string LogoUrl => LogoKey.Length > 0 ? "/api/public/logo?v=" + LogoKey : "";
     public string StudioName { get; set; } = "Mây Studio";
     public string ContactEmail { get; set; } = "hello@may.studio";
     public string GoogleApiKey { get; set; } = "";
@@ -1455,7 +1458,8 @@ public sealed record AdminSettingsDto(
     string ContactEmail,
     bool GoogleConfigured,
     string? GoogleKeyHint,
-    WebsiteContent Website);
+    WebsiteContent Website,
+    string LogoUrl);
 
 public sealed record StudioUserDto(
     string Id,

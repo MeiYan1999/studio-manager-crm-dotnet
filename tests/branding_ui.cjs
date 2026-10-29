@@ -34,7 +34,7 @@ assert.ok(['localhost', '127.0.0.1'].includes(new URL(base).hostname));
     const long = await page.request.put(base + '/api/admin/settings', {data: {...settings, website: {...settings.website, footerPrivacy: 'a'.repeat(601)}}});
     assert.equal(long.status(), 400);
     const publicSettings = await (await page.request.get(base + '/api/public/website')).json();
-    assert.deepEqual(Object.keys(publicSettings).sort(), ['studioName', 'website']);
+    assert.deepEqual(Object.keys(publicSettings).sort(), ['logoUrl', 'studioName', 'website']);
     await page.evaluate(() => window.dispatchEvent(new CustomEvent('may:navigate', {detail: {path: '/'}})));
     await page.locator('.site-nav').waitFor();
     assert.match(await page.locator('.site-nav .wordmark').innerText(), /nắng/);

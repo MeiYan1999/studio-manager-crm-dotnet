@@ -22,6 +22,12 @@ public static class AdminEndpoints
         group.MapPost("/albums/{id}/rotate-link", RotateLink).AddEndpointFilter(albums);
         group.MapDelete("/albums/{id}", DeleteAlbum).AddEndpointFilter(albums);
         group.MapGet("/albums/{id}/selections.csv", ExportSelections).AddEndpointFilter(albums);
+        group.MapPost("/settings/logo", UploadLogo).AddEndpointFilter<StudioAdminFilter>().DisableAntiforgery();
+        group.MapDelete("/settings/logo", (DataStore store) =>
+        {
+            store.Write(data => data.Settings.LogoKey = "");
+            return Results.Ok(BuildSettingsDto(store));
+        }).AddEndpointFilter<StudioAdminFilter>();
         group.MapGet("/settings", GetSettings).AddEndpointFilter<StudioAdminFilter>();
         group.MapPut("/settings", SaveSettings).AddEndpointFilter<StudioAdminFilter>();
         group.MapGet("/users", GetUsers).AddEndpointFilter<StudioAdminFilter>();
@@ -728,6 +734,24 @@ public static class AdminEndpoints
         return Results.Ok(BuildSettingsDto(store));
     }
 
+    private static async Task<IResult> UploadLogo(IFormFile? file, HttpContext context, DataStore store, IObjectStorage storage)
+    {
+        if (file is null || file.Length == 0 || file.Length > 2 * 1024 * 1024)
+            throw new ApiException(400, "Chọn ảnh logo tối đa 2 MB.", "invalid_logo");
+        await using var memory = new MemoryStream();
+        await file.CopyToAsync(memory, context.RequestAborted);
+        var bytes = memory.ToArray();
+        var type = bytes.Length >= 8 && bytes.AsSpan(0, 8).SequenceEqual(new byte[] {137,80,78,71,13,10,26,10}) ? "image/png"
+            : bytes.Length >= 3 && bytes[0] == 255 && bytes[1] == 216 && bytes[2] == 255 ? "image/jpeg"
+            : bytes.Length >= 12 && Encoding.ASCII.GetString(bytes, 0, 4) == "RIFF" && Encoding.ASCII.GetString(bytes, 8, 4) == "WEBP" ? "image/webp" : "";
+        if (type.Length == 0) throw new ApiException(400, "Chỉ nhận ảnh PNG, JPG hoặc WebP hợp lệ.", "invalid_logo");
+        var key = "logo-" + Guid.NewGuid().ToString("N");
+        memory.Position = 0;
+        await storage.PutAsync(key, memory, type, context.RequestAborted);
+        store.Write(data => { data.Settings.LogoKey = key; data.Settings.LogoContentType = type; });
+        return Results.Ok(BuildSettingsDto(store));
+    }
+
     private static IResult SaveSettings(SaveSettingsRequest request, HttpContext context, DataStore store, AdminSessionStore sessions)
     {
         var actor = sessions.RequireUser(context);
@@ -822,6 +846,8 @@ public static class AdminEndpoints
         {
             StudioName = data.Settings.StudioName,
             ContactEmail = data.Settings.ContactEmail,
+            LogoKey = data.Settings.LogoKey,
+            LogoContentType = data.Settings.LogoContentType,
             Website = data.Settings.Website
         });
         return ApiMappings.ToSettings(settings, store.GetEffectiveGoogleApiKey());

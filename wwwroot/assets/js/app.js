@@ -322,7 +322,7 @@ function navigate(path, options = {}) {
 function landingView() {
   const content = websiteSettings.website || {};
   const text = (key, fallback) => escapeHtml(content[key] ?? fallback);
-  const brand = `<a class="wordmark" href="/" aria-label="${escapeAttr(content.brandName ?? 'mây')} — trang chủ">${text('brandName', 'mây')}<span>.</span><small>${text('brandLabel', 'album')}</small></a>`;
+  const brand = websiteSettings.logoUrl ? `<a href="/" aria-label="${escapeAttr(websiteSettings.studioName)}"><img src="${escapeAttr(websiteSettings.logoUrl)}" alt="${escapeAttr(websiteSettings.studioName)}" style="max-width:180px;height:56px;object-fit:contain"></a>` : `<a class="wordmark" href="/" aria-label="${escapeAttr(content.brandName ?? 'mây')} — trang chủ">${text('brandName', 'mây')}<span>.</span><small>${text('brandLabel', 'album')}</small></a>`;
   const html = `
     <div class="landing">
       <header class="site-nav">
