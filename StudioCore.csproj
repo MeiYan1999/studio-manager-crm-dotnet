@@ -11,6 +11,8 @@
     <!-- Static frontend is plain HTML/CSS/ES modules and does not require a build step. -->
     <Compile Remove="tests/**/*.cs" />
     <Content Remove="tests/**" />
+    <Content Remove="tools/**" />
+    <None Remove="tools/**" />
     <None Remove="tests/**" />
     <Content Remove="data\**" />
     <None Remove="data\**" />

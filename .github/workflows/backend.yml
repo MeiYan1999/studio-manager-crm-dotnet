@@ -31,6 +31,8 @@ jobs:
         run: dotnet test tests/StudioCore.Tests/StudioCore.Tests.csproj -c Release --no-build --logger trx --results-directory TestResults
       - name: API and S3 smoke tests (temporary data only)
         run: python3 tests/run_backend.py
+      - name: Local preview seed smoke test
+        run: python3 tools/start-local-review.py --smoke --port 0
       - name: Publish validation
         run: dotnet publish StudioCore.csproj -c Release --no-restore -o "${{ runner.temp }}/studiocore-publish"
       - name: Upload test results

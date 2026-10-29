@@ -372,3 +372,23 @@ database vẫn ưu tiên hiển thị; đổi tên dự án không ghi đè thô
 Tên service/database trong `render.yaml`, tên repository GitHub, URL Render và cookie/session
 được giữ nguyên để không tạo lại tài nguyên hoặc thay đổi cấu hình đang triển khai. Dockerfile
 đã trỏ đến `StudioCore.csproj` và `StudioCore.dll`.
+
+## Preview local để review tính năng
+
+Clone repository rồi chạy từ thư mục gốc:
+
+```bash
+python3 tools/start-local-review.py
+```
+
+Script build source, mở trình duyệt tại localhost, tạo dữ liệu giả cho CRM, lịch chụp,
+đơn hàng, hợp đồng, thu chi, chấm công và trang phục. Tài khoản `admin`/`review-staff`
+cùng mật khẩu ngẫu nhiên được hiển thị trong Terminal. Nhấn Ctrl+C để dừng và xóa dữ liệu thử.
+Có thể nhấp đúp `tools/Open-Local-Review.command` trên macOS.
+
+Xem [hướng dẫn và checklist review](docs/LOCAL-REVIEW.md) và
+[báo cáo tiếp nhận dự án](docs/PROJECT-HANDOVER.md).
+
+Dữ liệu production không nằm trong GitHub: clone source không tải theo tên studio,
+logo, khách hàng hoặc đơn hàng trên Render. Preview luôn dùng dữ liệu riêng; tên mặc định
+StudioCore không ghi đè tên studio đã lưu trong database.

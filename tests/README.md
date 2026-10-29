@@ -28,7 +28,7 @@ kế thừa. Runner dừng process và dọn dữ liệu khi kết thúc, kể c
 Test S3 khởi động server và stub riêng, cũng dùng dữ liệu tạm/cổng động.
 Không chạy các smoke script trực tiếp với dữ liệu studio thật: chúng tạo/sửa/khóa bản ghi.
 
-CI `.github/workflows/backend.yml` chạy restore, build, xUnit, runner API/S3 và publish;
+CI `.github/workflows/backend.yml` chạy restore, build, xUnit, runner API/S3, preview seed smoke và publish;
 lưu kết quả xUnit dạng TRX. CI không deploy và không dùng secrets bên ngoài.
 Chưa bao phủ PostgreSQL thật, Drive thật, browser, toàn bộ CRM/sales/payroll và lỗi ghi/rollback.
 Các rủi ro authentication legacy và session đã nêu ở README chưa được sửa trong nhiệm vụ này.
