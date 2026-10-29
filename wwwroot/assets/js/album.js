@@ -928,7 +928,7 @@ function setupAlbum(root, album) {
         .map(photo => photo.code)
         .sort((a, b) => a.localeCompare(b, 'vi', { numeric: true }));
       if (codes.length) {
-        copyText(codes.join('\n')).then(ok => {
+        copyText(codes.join(',')).then(ok => {
           showToast(ok ? `Đã sao chép ${codes.length} mã ảnh.` : 'Không thể sao chép mã ảnh. Hãy thử lại.', ok ? 'success' : 'error');
         });
       }

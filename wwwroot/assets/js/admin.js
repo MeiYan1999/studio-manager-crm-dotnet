@@ -590,7 +590,7 @@ async function copySelectedCodes(button, codes) {
     return;
   }
 
-  const ok = await copyText(codes.join('\n'));
+  const ok = await copyText(codes.join(','));
   if (!ok) {
     showToast('Không thể sao chép mã ảnh. Hãy thử lại.', 'error');
     return;
