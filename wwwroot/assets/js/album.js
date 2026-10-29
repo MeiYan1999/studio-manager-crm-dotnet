@@ -9,7 +9,8 @@ import {
   normalizeSearch,
   pluralPhotos,
   setButtonLoading,
-  showToast
+  showToast,
+  copyText
 } from './ui.js';
 
 const ACTIVE_BODY_CLASSES = ['drawer-open', 'lightbox-open'];
@@ -363,6 +364,7 @@ function selectionDrawer(album, selectedCount) {
 
         <footer class="selection-drawer__foot" data-drawer-foot>
           <p>${icon('lock')} Studio sẽ nhận được danh sách ngay sau khi bạn gửi.</p>
+          <button class="btn btn--ghost btn--full" type="button" data-copy-selected-codes ${selectedCount ? '' : 'disabled'}>${icon('copy')} Sao chép mã ảnh đã chọn</button>
           <button class="btn btn--primary btn--lg btn--full" type="button" data-submit-selection>
             ${icon('send')} Gửi lựa chọn cho studio
           </button>
@@ -377,6 +379,7 @@ function selectionDrawer(album, selectedCount) {
           <p class="drawer-success__time">${icon('clock')} <span data-success-time></span></p>
           <blockquote data-success-note hidden></blockquote>
           <div class="drawer-success__actions">
+            <button class="btn btn--ghost btn--full" type="button" data-copy-selected-codes>${icon('copy')} Sao chép mã ảnh đã chọn</button>
             <button class="btn btn--primary btn--full" type="button" data-close-drawer>${icon('image')} Xem lại album</button>
             <button class="btn btn--ghost btn--full" type="button" data-edit-selection>Chỉnh sửa lựa chọn</button>
           </div>
@@ -557,6 +560,9 @@ function setupAlbum(root, album) {
   const renderDrawerList = () => {
     if (!drawerList) return;
     const chosen = selectedPhotos();
+    root.querySelectorAll('[data-copy-selected-codes]').forEach(button => {
+      button.disabled = chosen.length === 0 || state.busy.size > 0;
+    });
     drawerList.innerHTML = chosen.map(photo => `
       <article class="drawer-item">
         <img src="${escapeAttr(photo.thumbUrl)}" alt="${escapeAttr(photo.code)}" loading="lazy">
@@ -916,6 +922,18 @@ function setupAlbum(root, album) {
   // ------------------------------------------------------------ events
 
   const onClick = event => {
+    const copyButton = event.target.closest('[data-copy-selected-codes]');
+    if (copyButton) {
+      const codes = selectedPhotos()
+        .map(photo => photo.code)
+        .sort((a, b) => a.localeCompare(b, 'vi', { numeric: true }));
+      if (codes.length) {
+        copyText(codes.join('\n')).then(ok => {
+          showToast(ok ? `Đã sao chép ${codes.length} mã ảnh.` : 'Không thể sao chép mã ảnh. Hãy thử lại.', ok ? 'success' : 'error');
+        });
+      }
+      return;
+    }
     const openSelection = event.target.closest('[data-open-selection]');
     if (openSelection) {
       openDrawer(openSelection);

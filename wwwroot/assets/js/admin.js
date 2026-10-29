@@ -3108,6 +3108,7 @@ function renderDetail(album, queryDisplay = '') {
             <h2>${number(total)} khoảnh khắc</h2>
           </div>
           <div class="gallery-tools">
+            <button class="btn btn--ghost btn--compact" type="button" data-copy-selected-codes ${selectedPhotos ? '' : 'disabled'}>${icon('copy')} Sao chép mã ảnh đã chọn</button>
             <div class="segmented segmented--sm" role="tablist" aria-label="Lọc ảnh">
               <button class="segmented__item" type="button" role="tab" data-detail-filter="all" aria-selected="true">Tất cả <span>${number(total)}</span></button>
               <button class="segmented__item" type="button" role="tab" data-detail-filter="selected" aria-selected="false">${icon('heart')} Đã chọn <span>${number(selectedPhotos)}</span></button>
