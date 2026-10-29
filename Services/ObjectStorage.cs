@@ -1,6 +1,7 @@
 using Amazon.Runtime;
 using Amazon.S3;
 using Amazon.S3.Model;
+using MayAlbum.Models;
 
 namespace MayAlbum.Services;
 
@@ -37,8 +38,9 @@ public sealed class ObjectStorage : IObjectStorage, IDisposable
         {
             if (_bucket.Length == 0 || endpoint.Length == 0 || accessKey.Length == 0 || secretKey.Length == 0)
             {
-                throw new InvalidOperationException(
-                    "Storage:Provider=s3 yêu cầu Endpoint, Bucket, AccessKey và SecretKey.");
+                throw new ApiException(503,
+                    "Chưa cấu hình đầy đủ kho ảnh. Kiểm tra Storage__Endpoint, Storage__Bucket, Storage__AccessKey và Storage__SecretKey trên Render.",
+                    "storage_not_configured");
             }
 
             var config = new AmazonS3Config
@@ -68,15 +70,39 @@ public sealed class ObjectStorage : IObjectStorage, IDisposable
             return;
         }
 
-        await _s3.PutObjectAsync(new PutObjectRequest
+        try
         {
-            BucketName = _bucket,
-            Key = key,
-            InputStream = content,
-            ContentType = contentType,
-            AutoCloseStream = false,
-            DisablePayloadSigning = false
-        }, cancellationToken);
+            await _s3.PutObjectAsync(new PutObjectRequest
+            {
+                BucketName = _bucket,
+                Key = key,
+                InputStream = content,
+                ContentType = contentType,
+                AutoCloseStream = false,
+                // S3-compatible providers may not support AWS streaming chunk signatures.
+                UseChunkEncoding = false,
+                DisablePayloadSigning = false
+            }, cancellationToken);
+        }
+        catch (AmazonS3Exception exception)
+        {
+            _logger.LogError("Storage upload failed: HTTP {Status}, code {Code}, request {RequestId}",
+                (int)exception.StatusCode, exception.ErrorCode, exception.RequestId);
+            var message = exception.ErrorCode switch
+            {
+                "NoSuchBucket" => "Chưa tìm thấy bucket lưu ảnh. Kiểm tra Storage__Bucket trên Render và tạo đúng bucket trong Supabase Storage.",
+                "InvalidAccessKeyId" or "SignatureDoesNotMatch" or "InvalidSignatureException" =>
+                    "Không xác thực được kho ảnh. Kiểm tra Access Key, Secret Key, Endpoint và Region của Supabase Storage trên Render.",
+                "AccessDenied" => "Kho ảnh từ chối quyền tải lên. Kiểm tra khóa S3 và quyền truy cập bucket trong Supabase Storage.",
+                _ => "Không tải được ảnh lên kho lưu trữ. Kiểm tra cấu hình Supabase Storage và nhật ký Render rồi thử lại."
+            };
+            throw new ApiException(502, message, "storage_upload_failed");
+        }
+        catch (HttpRequestException)
+        {
+            _logger.LogWarning("Storage upload could not connect to the configured endpoint.");
+            throw new ApiException(502, "Không kết nối được kho ảnh. Kiểm tra Storage__Endpoint trên Render rồi thử lại.", "storage_unavailable");
+        }
     }
 
     public async Task<StoredObject?> GetAsync(string key, CancellationToken cancellationToken)
