@@ -48,8 +48,7 @@ public sealed class ObjectStorage : IObjectStorage, IDisposable
             {
                 ServiceURL = endpoint,
                 ForcePathStyle = true,
-                AuthenticationRegion = configuration["Storage:Region"]?.Trim() ?? "auto",
-                SignatureVersion = "4"
+                AuthenticationRegion = configuration["Storage:Region"]?.Trim() ?? "auto"
             };
             _disablePayloadSigning = endpoint.StartsWith("https://", StringComparison.OrdinalIgnoreCase);
             _s3 = new AmazonS3Client(new BasicAWSCredentials(accessKey, secretKey), config);
