@@ -68,6 +68,7 @@ function parseRoute(pathname) {
   if (path === '/admin/finance') return { name: 'finance', path };
   if (path === '/admin/attendance') return { name: 'attendance', path };
   if (path === '/admin/shifts') return { name: 'shifts', path };
+  if (path === '/admin/website-concepts') return { name: 'website-concepts', path };
   if (path === '/admin/wardrobe') return { name: 'wardrobe', path };
   if (path === '/admin/notifications') return { name: 'notifications', path };
   if (path === '/admin/audit') return { name: 'audit', path };
@@ -108,6 +109,7 @@ const ROUTE_PERMISSIONS = {
   attendance: 'attendance',
   shifts: 'attendance',
   wardrobe: 'wardrobe',
+  'website-concepts': 'wardrobe',
   notifications: 'notifications',
   audit: 'audit',
   settings: 'settings'
@@ -120,7 +122,7 @@ const PERMISSION_ROUTES = [
   { permission: 'tools', path: '/admin/tools', label: 'Lọc ảnh theo mã', iconName: 'filter' },
   { permission: 'customers', path: '/admin/customers', label: 'Khách hàng', iconName: 'users' },
   { permission: 'bookings', path: '/admin/bookings', label: 'Lịch chụp', iconName: 'calendar' },
-  { permission: 'packages', path: '/admin/packages', label: 'Gói dịch vụ', iconName: 'tag' },
+  { permission: 'packages', path: '/admin/packages', label: 'Gói Chụp', iconName: 'tag' },
   { permission: 'staff', path: '/admin/staff', label: 'Nhân sự', iconName: 'camera' },
   { permission: 'orders', path: '/admin/orders', label: 'Đơn hàng', iconName: 'receipt' },
   { permission: 'contracts', path: '/admin/contracts', label: 'Hợp đồng', iconName: 'file' },
@@ -297,6 +299,8 @@ function buildView(route) {
       return shiftsView(context);
     case 'wardrobe':
       return wardrobeView(context);
+    case 'website-concepts':
+      return wardrobeView({ ...context, websiteConcepts: true });
     case 'notifications':
       return notificationsView(context);
     case 'audit':

@@ -675,7 +675,7 @@ export function packagesView({ session }) {
     session,
     active: 'packages',
     eyebrow: 'Danh mục dịch vụ',
-    title: 'Gói dịch vụ',
+    title: 'Gói Chụp',
     lead: 'Chuẩn hoá giá, thời lượng và quyền lợi để mỗi lịch chụp được báo giá nhất quán.',
     actions: `<button class="btn btn--primary" type="button" data-action="package-create">${icon('plus')} Thêm gói dịch vụ</button>`,
     body: `

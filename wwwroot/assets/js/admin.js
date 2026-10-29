@@ -166,7 +166,7 @@ const NAV_GROUPS = [
     items: [
       { key: 'customers', label: 'Khách hàng', href: '/admin/customers', iconName: 'users', permission: 'customers' },
       { key: 'bookings', label: 'Lịch chụp', href: '/admin/bookings', iconName: 'calendar', permission: 'bookings' },
-      { key: 'packages', label: 'Gói dịch vụ', href: '/admin/packages', iconName: 'tag', permission: 'packages' },
+      { key: 'packages', label: 'Gói Chụp', href: '/admin/packages', iconName: 'tag', permission: 'packages' },
       { key: 'staff', label: 'Nhân sự', href: '/admin/staff', iconName: 'camera', permission: 'staff' }
     ]
   },
@@ -185,6 +185,7 @@ const NAV_GROUPS = [
       { key: 'shifts', label: 'Chia ca làm việc', href: '/admin/shifts', iconName: 'calendar', permission: 'attendance' },
       { key: 'attendance', label: 'Chấm công', href: '/admin/attendance', iconName: 'clock', permission: 'attendance' },
       { key: 'wardrobe', label: 'Tủ trang phục', href: '/admin/wardrobe', iconName: 'tag', permission: 'wardrobe' },
+      { key: 'website-concepts', label: 'Bộ ảnh website', href: '/admin/website-concepts', iconName: 'albums', permission: 'wardrobe', adminOnly: true },
       { key: 'notifications', label: 'Thông báo', href: '/admin/notifications', iconName: 'bell', permission: 'notifications' }
     ]
   },

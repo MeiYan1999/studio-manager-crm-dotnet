@@ -1738,10 +1738,10 @@ export function shiftsView({ session }) {
 
 // ------------------------------------------------------------------ wardrobe
 
-export function wardrobeView({ session }) {
+export function wardrobeView({ session, websiteConcepts = false }) {
   let teardown = () => {};
   let disposed = false;
-  let tab = 'outfits';
+  let tab = websiteConcepts ? 'concepts' : 'outfits';
   let query = '';
   let category = 'all';
   let loanFilter = 'all';
@@ -1758,10 +1758,10 @@ export function wardrobeView({ session }) {
 
   const html = crmPage({
     session,
-    active: 'wardrobe',
+    active: websiteConcepts ? 'website-concepts' : 'wardrobe',
     eyebrow: 'Vận hành studio',
-    title: 'Tủ trang phục',
-    lead: 'Quản lý trang phục, concept và phiếu cho thuê của studio trong một nơi.',
+    title: websiteConcepts ? 'Bộ ảnh website' : 'Tủ trang phục',
+    lead: websiteConcepts ? 'Thêm hoặc sửa concept, chọn nhóm và album rồi bật hiển thị trên website.' : 'Quản lý trang phục, concept và phiếu cho thuê của studio trong một nơi.',
     body: `
       <nav class="ops-tabs" role="tablist" aria-label="Khu vực tủ trang phục">
         <button class="ops-tab is-active" type="button" role="tab" aria-selected="true" data-wardrobe-tab="outfits">${icon('tag')} Trang phục</button>
@@ -2472,7 +2472,7 @@ export function wardrobeView({ session }) {
   }
 
   return {
-    title: 'Tủ trang phục',
+    title: websiteConcepts ? 'Bộ ảnh website' : 'Tủ trang phục',
     bodyClass: 'page-admin',
     html,
     async mount(root) {
