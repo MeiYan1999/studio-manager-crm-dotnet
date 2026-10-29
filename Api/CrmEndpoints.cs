@@ -2,10 +2,10 @@ using System.Globalization;
 using System.Net.Mail;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using MayAlbum.Models;
-using MayAlbum.Services;
+using StudioCore.Models;
+using StudioCore.Services;
 
-namespace MayAlbum.Api;
+namespace StudioCore.Api;
 
 /// <summary>
 /// Phase 1 CRM: khách hàng, gói dịch vụ, nhân sự, lịch chụp và nhật ký studio.

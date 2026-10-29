@@ -1,7 +1,7 @@
 using System.Text.Json.Serialization;
-using MayAlbum.Services;
+using StudioCore.Services;
 
-namespace MayAlbum.Models;
+namespace StudioCore.Models;
 
 public sealed class AppData
 {
@@ -33,11 +33,36 @@ public sealed class AppData
     public List<AuditLogEntry> AuditLogs { get; set; } = [];
 }
 
+public sealed class WebsiteContent
+{
+    public string LoadingName { get; set; } = "";
+    public string LoadingText { get; set; } = "Đang mở studio…";
+    public string LoginName { get; set; } = "";
+    public string LoginQuote { get; set; } = "Ảnh đẹp nhất là ảnh khiến ta nhớ lại cảm giác của ngày hôm đó.";
+    public string LoginTitle { get; set; } = "Chào mừng trở lại.";
+    public string BrandName { get; set; } = "StudioCore";
+    public string BrandLabel { get; set; } = "album";
+    public string HowItWorksLabel { get; set; } = "Cách hoạt động";
+    public string SampleAlbumsLabel { get; set; } = "Album mẫu";
+    public string ForStudioLabel { get; set; } = "Dành cho studio";
+    public string HeroTitle { get; set; } = "Mỗi khoảnh khắc, một lời nhớ.";
+    public string HeroDescription { get; set; } = "StudioCore gom những ngày đẹp nhất vào một album riêng. Bạn chỉ cần mở liên kết, thả tim những tấm ảnh mình yêu và gửi lại cho studio.";
+    public string FooterDescription { get; set; } = "Album ảnh riêng tư, được làm bằng sự chăm chút.";
+    public string FooterPrivacy { get; set; } = "Album được chia sẻ riêng cho từng khách hàng.";
+}
+
 public sealed class StudioSettings
 {
-    public string StudioName { get; set; } = "Mây Studio";
+    public string LoginImageKey { get; set; } = "";
+    public string LoginImageContentType { get; set; } = "image/png";
+    public string LoginImageUrl => LoginImageKey.Length > 0 ? "/api/public/login-image?v=" + LoginImageKey : "";
+    public string LogoKey { get; set; } = "";
+    public string LogoContentType { get; set; } = "image/png";
+    public string LogoUrl => LogoKey.Length > 0 ? "/api/public/logo?v=" + LogoKey : "";
+    public string StudioName { get; set; } = "StudioCore";
     public string ContactEmail { get; set; } = "hello@may.studio";
     public string GoogleApiKey { get; set; } = "";
+    public WebsiteContent Website { get; set; } = new();
 }
 
 public sealed class StudioUser
@@ -858,6 +883,7 @@ public sealed class SaveSettingsRequest
     public string? StudioName { get; set; }
     public string? ContactEmail { get; set; }
     public string? GoogleApiKey { get; set; }
+    public WebsiteContent? Website { get; set; }
     public bool ClearGoogleApiKey { get; set; }
 }
 
@@ -1439,7 +1465,10 @@ public sealed record AdminSettingsDto(
     string StudioName,
     string ContactEmail,
     bool GoogleConfigured,
-    string? GoogleKeyHint);
+    string? GoogleKeyHint,
+    WebsiteContent Website,
+    string LogoUrl,
+    string LoginImageUrl);
 
 public sealed record StudioUserDto(
     string Id,

@@ -25,7 +25,7 @@ import {
   todayLabel
 } from './ui.js';
 
-const STUDIO_FALLBACK = 'Mây Studio';
+const STUDIO_FALLBACK = 'StudioCore';
 
 // ---------------------------------------------------------------- utilities
 
@@ -224,7 +224,7 @@ export function adminShell({ active, session, content, topbarAction = '' }) {
       <div class="admin-scrim" data-sidebar-close></div>
       <aside class="admin-sidebar" aria-label="Điều hướng studio">
         <div class="admin-sidebar__brand">
-          <a class="wordmark" href="/admin">mây<span>.</span><small>studio</small></a>
+          <a class="wordmark" href="/admin">${escapeHtml(studioName)}</a>
           <button class="icon-btn admin-sidebar__close" type="button" data-sidebar-close aria-label="Đóng menu">${icon('x')}</button>
         </div>
         ${canCreateAlbum ? `<a class="btn btn--primary admin-sidebar__create" href="/admin/create">${icon('plus')} Tạo album mới</a>` : ''}
@@ -254,7 +254,7 @@ export function adminShell({ active, session, content, topbarAction = '' }) {
       <div class="admin-main">
         <header class="admin-mobilebar">
           <button class="icon-btn" type="button" data-sidebar-open aria-label="Mở menu">${icon('menu')}</button>
-          <a class="wordmark wordmark--small" href="/admin">mây<span>.</span></a>
+          <a class="wordmark wordmark--small" href="/admin">${escapeHtml(studioName)}</a>
           ${topbarAction || '<a class="icon-btn" href="/admin/create" aria-label="Tạo album mới">' + icon('plus') + '</a>'}
         </header>
         <main class="admin-page" id="admin-page">
@@ -312,18 +312,21 @@ export function pageHead({ eyebrow, title, lead, actions = '', back = '' }) {
 
 // ---------------------------------------------------------------- login
 
-export function loginView({ session }) {
+export function loginView({ session, websiteSettings = {} }) {
+  const content = websiteSettings.website || {};
+  const name = content.loginName || websiteSettings.studioName || session?.studioName || 'StudioCore';
+  const brand = websiteSettings.logoUrl ? `<img src="${escapeAttr(websiteSettings.logoUrl)}" alt="${escapeAttr(name)}" style="max-width:180px;height:56px;object-fit:contain">` : escapeHtml(name);
   const next = new URLSearchParams(location.search).get('next') || '/admin';
   const html = `
     <div class="login-page">
-      <section class="login-visual" aria-label="Mây Studio">
-        <img class="login-visual__image" src="/assets/img/demo/07.jpg" alt="Khoảnh khắc cô dâu bên biển" fetchpriority="high">
+      <section class="login-visual" aria-label="${escapeAttr(name)}">
+        <img class="login-visual__image" src="${escapeAttr(websiteSettings.loginImageUrl || "/assets/img/demo/07.jpg")}" alt="${escapeAttr(name)}" fetchpriority="high">
         <div class="login-visual__veil"></div>
-        <a class="wordmark wordmark--light" href="/">mây<span>.</span><small>album</small></a>
+        <a class="wordmark wordmark--light" href="/">${brand}</a>
         <div class="login-visual__quote">
           <span class="quote-mark">${icon('quote')}</span>
-          <blockquote>“Ảnh đẹp nhất là ảnh khiến ta nhớ lại cảm giác của ngày hôm đó.”</blockquote>
-          <p>Mây Studio · Đà Lạt</p>
+          <blockquote>${escapeHtml(content.loginQuote ?? 'Ảnh đẹp nhất là ảnh khiến ta nhớ lại cảm giác của ngày hôm đó.')}</blockquote>
+          <p>${escapeHtml(name)}</p>
         </div>
         <div class="login-visual__foot">
           <span>${icon('lock')} Không gian riêng cho studio</span>
@@ -333,12 +336,12 @@ export function loginView({ session }) {
 
       <section class="login-panel">
         <div class="login-panel__top">
-          <a class="wordmark wordmark--mobile" href="/">mây<span>.</span><small>album</small></a>
+          <a class="wordmark wordmark--mobile" href="/">${brand}</a>
           <a class="btn btn--text btn--compact" href="/">${icon('arrowLeft')} Về trang chủ</a>
         </div>
         <div class="login-card">
           <p class="eyebrow"><span class="eyebrow__dot"></span>Khu vực studio</p>
-          <h1>Chào mừng trở lại.</h1>
+          <h1>${escapeHtml(content.loginTitle ?? 'Chào mừng trở lại.')}</h1>
           <p class="login-card__lead">Đăng nhập bằng tài khoản riêng để mở bảng điều khiển và tiếp tục chăm sóc những album của bạn.</p>
 
           <form class="login-form" data-login-form novalidate>
@@ -367,7 +370,7 @@ export function loginView({ session }) {
             <p>${icon('lock')} Mỗi thành viên dùng tài khoản riêng do quản trị viên tạo trong Cài đặt studio.</p>
           </div>
         </div>
-        <p class="login-panel__credit">© ${new Date().getFullYear()} Mây Studio · Mây Album</p>
+        <p class="login-panel__credit">© ${new Date().getFullYear()} ${escapeHtml(name)}</p>
       </section>
     </div>
   `;
@@ -441,7 +444,7 @@ export function changePasswordView({ session }) {
   const html = `
     <div class="password-page">
       <header class="password-page__top">
-        <a class="wordmark" href="/">mây<span>.</span><small>studio</small></a>
+        <a class="wordmark" href="/">StudioCore<span>.</span><small>studio</small></a>
         ${forced
           ? `<button class="btn btn--ghost btn--compact" type="button" data-action="logout">${icon('logout')} Đăng xuất</button>`
           : `<a class="btn btn--text btn--compact" href="${escapeAttr(safeNext)}">${icon('arrowLeft')} Quay lại</a>`}
@@ -479,7 +482,7 @@ export function changePasswordView({ session }) {
         </form>
         <p class="password-card__foot">${icon('shield')} Mật khẩu được mã hoá một chiều trên máy chủ. Không ai trong studio đọc được mật khẩu của bạn.</p>
       </main>
-      <p class="password-page__credit">© ${new Date().getFullYear()} Mây Studio · Mây Album</p>
+      <p class="password-page__credit">© ${new Date().getFullYear()} StudioCore</p>
     </div>
   `;
 
@@ -590,7 +593,7 @@ async function copySelectedCodes(button, codes) {
     return;
   }
 
-  const ok = await copyText(codes.join('\n'));
+  const ok = await copyText(codes.join(','));
   if (!ok) {
     showToast('Không thể sao chép mã ảnh. Hãy thử lại.', 'error');
     return;
@@ -1390,7 +1393,7 @@ function featuredHero(album) {
         </div>
         <div class="dash-hero__stamp">
           <span>${formatDate(album.eventDate) || 'Mới tạo'}</span>
-          <strong>${escapeHtml(album.location || 'Mây Studio')}</strong>
+          <strong>${escapeHtml(album.location || 'StudioCore')}</strong>
         </div>
       </div>
     </section>
@@ -1403,7 +1406,7 @@ function emptyHero() {
       <div class="dash-hero__copy">
         <p class="eyebrow eyebrow--light"><span class="eyebrow__dot"></span>Bắt đầu thật nhẹ</p>
         <h2>Album đầu tiên<br>đang chờ bạn.</h2>
-        <p class="dash-hero__client">Dán một liên kết Google Drive, Mây sẽ đọc ảnh và tạo album trong vài giây.</p>
+        <p class="dash-hero__client">Dán một liên kết Google Drive, StudioCore sẽ đọc ảnh và tạo album trong vài giây.</p>
         <div class="dash-hero__actions">
           <a class="btn btn--cream" href="/admin/create">Tạo album đầu tiên ${icon('arrowRight')}</a>
           <a class="btn btn--ghost-light" href="/admin/settings">${icon('settings')} Kết nối Drive</a>
@@ -2326,7 +2329,7 @@ export function createView({ session }) {
                 </button>
               `).join('')}
             </div>
-            <p class="preview-result__foot">${icon('checkCircle')} Khi tạo album, Mây sẽ nhập toàn bộ ${number(preview.totalCount)} ảnh trong thư mục.</p>
+            <p class="preview-result__foot">${icon('checkCircle')} Khi tạo album, StudioCore sẽ nhập toàn bộ ${number(preview.totalCount)} ảnh trong thư mục.</p>
           </div>
         `;
       };
@@ -2636,7 +2639,7 @@ export function albumDetailView({ session, albumId }) {
       const paint = () => {
         if (!album) return;
         holder.innerHTML = renderDetail(album, queryDisplay);
-        document.title = `${album.title} · Mây Album`;
+        document.title = `${album.title} · StudioCore`;
         applyGalleryFilter();
       };
 
@@ -3108,6 +3111,7 @@ function renderDetail(album, queryDisplay = '') {
             <h2>${number(total)} khoảnh khắc</h2>
           </div>
           <div class="gallery-tools">
+            <button class="btn btn--ghost btn--compact" type="button" data-copy-selected-codes ${selectedPhotos ? '' : 'disabled'}>${icon('copy')} Sao chép mã ảnh đã chọn</button>
             <div class="segmented segmented--sm" role="tablist" aria-label="Lọc ảnh">
               <button class="segmented__item" type="button" role="tab" data-detail-filter="all" aria-selected="true">Tất cả <span>${number(total)}</span></button>
               <button class="segmented__item" type="button" role="tab" data-detail-filter="selected" aria-selected="false">${icon('heart')} Đã chọn <span>${number(selectedPhotos)}</span></button>
@@ -3371,6 +3375,72 @@ export function settingsView({ session }) {
         }
       };
 
+      page.addEventListener('change', async event => {
+        if (!event.target.matches('[data-logo-upload]')) return;
+        const file = event.target.files?.[0];
+        if (!file) return;
+        if (file.size > 2 * 1024 * 1024) { showToast('Logo tối đa 2 MB.', 'error'); return; }
+        event.target.disabled = true;
+        try {
+          const body = new FormData(); body.append('file', file);
+          const response = await fetch('/api/admin/settings/logo', { method: 'POST', body, credentials: 'same-origin' });
+          const result = await response.json();
+          if (!response.ok) throw new Error(result.error || 'Chưa tải được logo.');
+          settings = result;
+          window.dispatchEvent(new CustomEvent('may:website', { detail: result }));
+          const preview = page.querySelector('[data-logo-preview]');
+          preview.src = result.logoUrl; preview.hidden = false;
+          page.querySelector('[data-logo-remove]').hidden = false;
+          showToast('Đã lưu logo.', 'success');
+        } catch (error) { showToast(error.message, 'error'); }
+        finally { event.target.disabled = false; event.target.value = ''; }
+      });
+      page.addEventListener('click', async event => {
+        const button = event.target.closest('[data-logo-remove]');
+        if (!button) return;
+        button.disabled = true;
+        try {
+          settings = await api('/api/admin/settings/logo', { method: 'DELETE' });
+          window.dispatchEvent(new CustomEvent('may:website', { detail: settings }));
+          page.querySelector('[data-logo-preview]').hidden = true;
+          button.hidden = true;
+          showToast('Đã chuyển về logo chữ.', 'success');
+        } catch (error) { showToast(error.message, 'error'); }
+        finally { button.disabled = false; }
+      });
+      page.addEventListener('change', async event => {
+        if (!event.target.matches('[data-login-image-upload]')) return;
+        const file = event.target.files?.[0];
+        if (!file) return;
+        if (file.size > 2 * 1024 * 1024) { showToast('Ảnh tối đa 2 MB.', 'error'); return; }
+        event.target.disabled = true;
+        try {
+          const body = new FormData(); body.append('file', file);
+          const response = await fetch('/api/admin/settings/login-image', { method: 'POST', body, credentials: 'same-origin' });
+          const result = await response.json();
+          if (!response.ok) throw new Error(result.error || 'Chưa tải được ảnh.');
+          settings = result;
+          window.dispatchEvent(new CustomEvent('may:website', { detail: result }));
+          const preview = page.querySelector('[data-login-image-preview]');
+          preview.src = result.loginImageUrl; preview.hidden = false;
+          page.querySelector('[data-login-image-remove]').hidden = false;
+          showToast('Đã lưu ảnh đăng nhập.', 'success');
+        } catch (error) { showToast(error.message, 'error'); }
+        finally { event.target.disabled = false; event.target.value = ''; }
+      });
+      page.addEventListener('click', async event => {
+        const button = event.target.closest('[data-login-image-remove]');
+        if (!button) return;
+        button.disabled = true;
+        try {
+          settings = await api('/api/admin/settings/login-image', { method: 'DELETE' });
+          window.dispatchEvent(new CustomEvent('may:website', { detail: settings }));
+          page.querySelector('[data-login-image-preview]').hidden = true;
+          button.hidden = true;
+          showToast('Đã dùng lại ảnh mặc định.', 'success');
+        } catch (error) { showToast(error.message, 'error'); }
+        finally { button.disabled = false; }
+      });
       page.addEventListener('submit', async event => {
         const form = event.target.closest('[data-settings-form]');
         if (!form) return;
@@ -3399,6 +3469,7 @@ export function settingsView({ session }) {
           const result = await api('/api/admin/settings', {
             method: 'PUT',
             body: {
+              website: Object.fromEntries(["loadingName", "loadingText", "loginName", "loginQuote", "loginTitle", "brandName", "brandLabel", "howItWorksLabel", "sampleAlbumsLabel", "forStudioLabel", "heroTitle", "heroDescription", "footerDescription", "footerPrivacy"].map(name => [name, form.elements.namedItem(name).value.trim()])),
               studioName: studioName.value.trim(),
               contactEmail: contactEmail.value.trim(),
               googleApiKey: apiKey.value.trim() || null,
@@ -3407,6 +3478,7 @@ export function settingsView({ session }) {
           });
           if (disposed) return;
           settings = result;
+          window.dispatchEvent(new CustomEvent('may:website', { detail: { studioName: result.studioName, website: result.website, logoUrl: result.logoUrl, loginImageUrl: result.loginImageUrl } }));
           if (session) {
             session.studioName = result.studioName;
             notifySession(session);
@@ -3414,7 +3486,7 @@ export function settingsView({ session }) {
           paint();
           const preview = root.querySelector('[data-studio-name-preview]');
           if (preview) preview.textContent = result.studioName;
-          showToast(`Đã đổi tên studio thành “${result.studioName}”.`, 'success');
+          showToast(`Đã lưu cài đặt studio “${result.studioName}”.`, 'success');
         } catch (error) {
           if (disposed || error.name === 'AbortError') return;
           setButtonLoading(submit, false);
@@ -4193,6 +4265,47 @@ function renderSettings(settings, users, session, staff = []) {
             </div>
           </section>
 
+          <section class="panel settings-section">
+            <header class="panel__head"><div><p class="eyebrow">Trang chủ</p><h2>Thương hiệu &amp; lời giới thiệu</h2><p>Đổi logo chữ, các nhãn menu và lời giới thiệu ở đầu, chân trang. Tên studio phía trên dùng cho dòng bản quyền.</p></div></header>
+            <div class="form-grid">
+              <div class="field field--full">
+                <label for="settings-logo">Ảnh logo</label>
+                <img data-logo-preview src="${escapeAttr(settings.logoUrl || '')}" alt="Logo studio" style="max-width:180px;height:64px;object-fit:contain" ${settings.logoUrl ? '' : 'hidden'}>
+                <input id="settings-logo" type="file" accept="image/png,image/jpeg,image/webp" data-logo-upload>
+                <p class="field__hint">PNG, JPG hoặc WebP, tối đa 2 MB. Logo được lưu ngay khi tải lên và thay logo chữ trên trang chủ.</p>
+                <button class="btn btn--ghost btn--compact" type="button" data-logo-remove ${settings.logoUrl ? '' : 'hidden'}>Xóa ảnh logo, dùng logo chữ</button>
+              </div>
+              <div class="field field--full"><label for="settings-brandName">Tên hiển thị trên logo</label><input id="settings-brandName" name="brandName" type="text" maxlength="60" value="${escapeAttr(settings.website?.brandName ?? 'StudioCore')}" required></div>
+              <div class="field field--full"><label for="settings-brandLabel">Chữ nhỏ bên cạnh logo</label><input id="settings-brandLabel" name="brandLabel" type="text" maxlength="30" value="${escapeAttr(settings.website?.brandLabel ?? 'album')}"></div>
+              <div class="field field--full"><label for="settings-howItWorksLabel">Menu: Cách hoạt động</label><input id="settings-howItWorksLabel" name="howItWorksLabel" type="text" maxlength="60" value="${escapeAttr(settings.website?.howItWorksLabel ?? 'Cách hoạt động')}"></div>
+              <div class="field field--full"><label for="settings-sampleAlbumsLabel">Menu: Album mẫu</label><input id="settings-sampleAlbumsLabel" name="sampleAlbumsLabel" type="text" maxlength="60" value="${escapeAttr(settings.website?.sampleAlbumsLabel ?? 'Album mẫu')}"></div>
+              <div class="field field--full"><label for="settings-forStudioLabel">Menu: Dành cho studio</label><input id="settings-forStudioLabel" name="forStudioLabel" type="text" maxlength="60" value="${escapeAttr(settings.website?.forStudioLabel ?? 'Dành cho studio')}"></div>
+              <div class="field field--full"><label for="settings-heroTitle">Tiêu đề giới thiệu trang chủ</label><input id="settings-heroTitle" name="heroTitle" type="text" maxlength="160" value="${escapeAttr(settings.website?.heroTitle ?? 'Mỗi khoảnh khắc, một lời nhớ.')}"></div>
+              <div class="field field--full"><label for="settings-heroDescription">Đoạn giới thiệu trang chủ</label><textarea id="settings-heroDescription" name="heroDescription" rows="3" maxlength="1200">${escapeHtml(settings.website?.heroDescription ?? 'StudioCore gom những ngày đẹp nhất vào một album riêng. Bạn chỉ cần mở liên kết, thả tim những tấm ảnh mình yêu và gửi lại cho studio.')}</textarea></div>
+              <div class="field field--full"><label for="settings-footerDescription">Giới thiệu ở chân trang</label><textarea id="settings-footerDescription" name="footerDescription" rows="3" maxlength="600">${escapeHtml(settings.website?.footerDescription ?? 'Album ảnh riêng tư, được làm bằng sự chăm chút.')}</textarea></div>
+              <div class="field field--full"><label for="settings-footerPrivacy">Dòng ghi chú riêng tư ở chân trang</label><textarea id="settings-footerPrivacy" name="footerPrivacy" rows="3" maxlength="600">${escapeHtml(settings.website?.footerPrivacy ?? 'Album được chia sẻ riêng cho từng khách hàng.')}</textarea></div>
+            </div>
+          </section>
+
+          <section class="panel settings-section">
+            <header class="panel__head"><div><h2>Màn hình tải trang</h2><p>Nội dung xuất hiện ngay khi mở hoặc tải lại website.</p></div></header>
+            <div class="form-grid">
+              <div class="field field--full"><label for="settings-loadingName">Tên trên màn hình tải</label><input id="settings-loadingName" name="loadingName" maxlength="60" value="${escapeAttr(settings.website?.loadingName || '')}"><p class="field__hint">Để trống để dùng tên hiển thị trên logo.</p></div>
+              <div class="field field--full"><label for="settings-loadingText">Dòng thông báo tải trang</label><input id="settings-loadingText" name="loadingText" maxlength="160" value="${escapeAttr(settings.website?.loadingText ?? 'Đang mở studio…')}"></div>
+            </div>
+          </section>
+          <section class="panel settings-section">
+            <header class="panel__head"><div><h2>Trang đăng nhập</h2><p>Tùy chỉnh tên và ảnh giới thiệu trên màn hình đăng nhập. Để trống tên để dùng tên studio.</p></div></header>
+            <div class="form-grid">
+<div class="field field--full"><label for="settings-loginName">Tên hiển thị trang đăng nhập</label><input id="settings-loginName" name="loginName" maxlength="100" value="${escapeAttr(settings.website?.loginName ?? '')}"></div>
+<div class="field field--full"><label for="settings-loginQuote">Câu giới thiệu trên ảnh</label><input id="settings-loginQuote" name="loginQuote" maxlength="600" value="${escapeAttr(settings.website?.loginQuote ?? 'Ảnh đẹp nhất là ảnh khiến ta nhớ lại cảm giác của ngày hôm đó.')}"></div>
+<div class="field field--full"><label for="settings-loginTitle">Tiêu đề chào mừng</label><input id="settings-loginTitle" name="loginTitle" maxlength="160" value="${escapeAttr(settings.website?.loginTitle ?? 'Chào mừng trở lại.')}"></div>
+<div class="field field--full"><label for="settings-login-image">Ảnh giới thiệu trang đăng nhập</label>
+<img data-login-image-preview src="${escapeAttr(settings.loginImageUrl || '')}" alt="Ảnh đăng nhập" style="max-width:100%;width:240px;height:160px;object-fit:cover" ${settings.loginImageUrl ? '' : 'hidden'}>
+<input id="settings-login-image" type="file" accept="image/png,image/jpeg,image/webp" data-login-image-upload>
+<p class="field__hint">PNG, JPG hoặc WebP tối đa 2 MB. Ảnh lưu ngay khi tải lên. Nên dùng ảnh dọc, chủ thể ở giữa.</p>
+<button class="btn btn--ghost btn--compact" type="button" data-login-image-remove ${settings.loginImageUrl ? '' : 'hidden'}>Dùng lại ảnh mặc định</button></div>
+</div></section>
           <section class="panel settings-section">
             <header class="panel__head panel__head--icon">
               <span class="panel__icon panel__icon--drive">${icon('drive')}</span>

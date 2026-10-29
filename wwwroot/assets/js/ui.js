@@ -105,7 +105,7 @@ export function stripDiacritics(value) {
 }
 
 export function initials(name) {
-  const parts = String(name || 'Mây Studio')
+  const parts = String(name || 'StudioCore')
     .replaceAll('&', ' ')
     .split(/\s+/)
     .filter(Boolean);

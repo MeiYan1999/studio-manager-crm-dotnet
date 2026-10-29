@@ -1,6 +1,6 @@
-using MayAlbum.Models;
+using StudioCore.Models;
 
-namespace MayAlbum.Services;
+namespace StudioCore.Services;
 
 internal static class DemoAlbums
 {
@@ -13,7 +13,7 @@ internal static class DemoAlbums
         {
             Settings = new StudioSettings
             {
-                StudioName = "Mây Studio",
+                StudioName = "StudioCore",
                 ContactEmail = "hello@may.studio"
             }
         };
@@ -68,7 +68,7 @@ internal static class DemoAlbums
             Location = "Đà Lạt",
             Description =
                 "Một buổi sáng Đà Lạt nhiều sương, vài tia nắng đầu ngày, và câu chuyện của hai người vừa bắt đầu. " +
-                "Cảm ơn Linh & Minh đã tin tưởng để Mây lưu lại ngày thật đẹp này.",
+                "Cảm ơn Linh & Minh đã tin tưởng để StudioCore lưu lại ngày thật đẹp này.",
             AllowFavorites = true,
             AllowDownloads = true,
             IsPublished = true,
@@ -92,7 +92,7 @@ internal static class DemoAlbums
             Location = "Phú Quốc",
             Description =
                 "Nắng, gió và tiếng sóng. Một ngày thật dài ở Phú Quốc, nơi chỉ cần hai người ở cạnh nhau là đủ. " +
-                "Cảm ơn Hà & Nam vì đã cùng Mây đi hết đường bờ biển.",
+                "Cảm ơn Hà & Nam vì đã cùng StudioCore đi hết đường bờ biển.",
             AllowFavorites = true,
             AllowDownloads = false,
             IsPublished = true,

@@ -1,0 +1,11 @@
+.git
+.github
+.taste-skill
+.vs
+.vscode
+bin
+obj
+data
+tests
+*.user
+*.suo

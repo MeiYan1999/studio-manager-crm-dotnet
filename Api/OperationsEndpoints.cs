@@ -1,9 +1,9 @@
 using System.Globalization;
 using System.Text;
-using MayAlbum.Models;
-using MayAlbum.Services;
+using StudioCore.Models;
+using StudioCore.Services;
 
-namespace MayAlbum.Api;
+namespace StudioCore.Api;
 
 /// <summary>
 /// Phase 3 vận hành studio: chi phí, bảng lương, chấm công, tủ trang phục,
@@ -173,6 +173,13 @@ public static class OperationsEndpoints
         var actor = sessions.RequireUser(context);
         var kind = request.Kind is null ? null : ParseFinanceKind(request.Kind);
         var date = request.Date is null ? null : RequireDate(request.Date, "Ngày thu chi");
+        // Validate before changing the live in-memory entry. A rejected edit
+        // must not change its kind/category and leak into a later save.
+        if (request.Amount is <= 0)
+        {
+            throw new ApiException(400, "Số tiền thu chi phải lớn hơn 0.", "invalid_finance_amount");
+        }
+
         var dto = store.Write(data =>
         {
             var entry = FindFinanceEntry(data, id);
@@ -197,14 +204,6 @@ public static class OperationsEndpoints
 
             if (request.Amount is not null)
             {
-                if (request.Amount.Value <= 0)
-                {
-                    throw new ApiException(
-                        400,
-                        entry.Kind == FinanceEntryKinds.Income ? "Số tiền thu phải lớn hơn 0." : "Số tiền chi phải lớn hơn 0.",
-                        "invalid_finance_amount");
-                }
-
                 entry.Amount = ApiMappings.RoundMoney(request.Amount.Value);
                 changes.Add($"Số tiền: {FormatMoney(entry.Amount)}");
             }
@@ -248,11 +247,12 @@ public static class OperationsEndpoints
         return Results.Ok(dto);
     }
 
-    private static IResult DeleteFinanceEntry(
+    private static async Task<IResult> DeleteFinanceEntry(
         string id,
         HttpContext context,
         DataStore store,
-        AdminSessionStore sessions)
+        AdminSessionStore sessions,
+        IObjectStorage storage)
     {
         var actor = sessions.RequireUser(context);
         var files = store.Write(data =>
@@ -274,7 +274,7 @@ public static class OperationsEndpoints
 
         foreach (var file in files)
         {
-            DeleteFinancePhotoFile(store, file);
+            await DeleteFinancePhotoFile(storage, file, context.RequestAborted);
         }
 
         return Results.NoContent();
@@ -285,7 +285,8 @@ public static class OperationsEndpoints
         IFormFile? file,
         HttpContext context,
         DataStore store,
-        AdminSessionStore sessions)
+        AdminSessionStore sessions,
+        IObjectStorage storage)
     {
         var actor = sessions.RequireUser(context);
         if (file is null || file.Length == 0)
@@ -320,11 +321,11 @@ public static class OperationsEndpoints
         var caption = context.Request.HasFormContentType
             ? AlbumText.TrimTo(context.Request.Form["caption"].ToString(), 120)
             : "";
-        var directory = FinancePhotoDirectory(store);
-        Directory.CreateDirectory(directory);
         var storedName = Guid.NewGuid().ToString("N") + extension;
-        var path = Path.Combine(directory, storedName);
-        await File.WriteAllBytesAsync(path, bytes, context.RequestAborted);
+        await using (var upload = new MemoryStream(bytes, writable: false))
+        {
+            await storage.PutAsync(storedName, upload, contentType, context.RequestAborted);
+        }
 
         try
         {
@@ -366,17 +367,18 @@ public static class OperationsEndpoints
         }
         catch
         {
-            DeleteFinancePhotoFile(store, storedName);
+            await DeleteFinancePhotoFile(storage, storedName, context.RequestAborted);
             throw;
         }
     }
 
-    private static IResult DeleteFinancePhoto(
+    private static async Task<IResult> DeleteFinancePhoto(
         string id,
         string photoId,
         HttpContext context,
         DataStore store,
-        AdminSessionStore sessions)
+        AdminSessionStore sessions,
+        IObjectStorage storage)
     {
         var actor = sessions.RequireUser(context);
         var fileName = store.Write(data =>
@@ -401,11 +403,15 @@ public static class OperationsEndpoints
             return Path.GetFileName(photo.FileName);
         });
 
-        DeleteFinancePhotoFile(store, fileName);
+        await DeleteFinancePhotoFile(storage, fileName, context.RequestAborted);
         return Results.NoContent();
     }
 
-    private static IResult GetFinancePhoto(string photoId, HttpContext context, DataStore store)
+    private static async Task<IResult> GetFinancePhoto(
+        string photoId,
+        HttpContext context,
+        DataStore store,
+        IObjectStorage storage)
     {
         var photo = store.Read(data => data.Expenses
             .SelectMany(entry => entry.Photos)
@@ -415,16 +421,16 @@ public static class OperationsEndpoints
             return Results.NotFound();
         }
 
-        var path = Path.Combine(FinancePhotoDirectory(store), Path.GetFileName(photo.FileName));
-        if (!File.Exists(path))
+        var stored = await storage.GetAsync(photo.FileName, context.RequestAborted);
+        if (stored is null)
         {
             return Results.NotFound();
         }
 
         context.Response.Headers.CacheControl = "private,max-age=3600";
         context.Response.Headers.XContentTypeOptions = "nosniff";
-        return Results.File(
-            path,
+        return Results.Stream(
+            stored.Content,
             photo.ContentType.Length > 0 ? photo.ContentType : "application/octet-stream",
             enableRangeProcessing: true);
     }
@@ -648,13 +654,14 @@ public static class OperationsEndpoints
             sessions);
     }
 
-    private static IResult DeleteExpense(
+    private static Task<IResult> DeleteExpense(
         string id,
         HttpContext context,
         DataStore store,
-        AdminSessionStore sessions)
+        AdminSessionStore sessions,
+        IObjectStorage storage)
     {
-        return DeleteFinanceEntry(id, context, store, sessions);
+        return DeleteFinanceEntry(id, context, store, sessions, storage);
     }
 
     private static IResult GetPayrolls(string? month, DataStore store)
@@ -2244,14 +2251,10 @@ public static class OperationsEndpoints
             ? IncomeCategories.Normalize(category)
             : ExpenseCategories.Normalize(category);
 
-    private static string FinancePhotoDirectory(DataStore store)
-    {
-        var directory = Path.Combine(store.DataDirectory, "finance-photos");
-        Directory.CreateDirectory(directory);
-        return directory;
-    }
-
-    private static void DeleteFinancePhotoFile(DataStore store, string? fileName)
+    private static async Task DeleteFinancePhotoFile(
+        IObjectStorage storage,
+        string? fileName,
+        CancellationToken cancellationToken)
     {
         var name = Path.GetFileName(fileName ?? "");
         if (name.Length == 0)
@@ -2261,13 +2264,9 @@ public static class OperationsEndpoints
 
         try
         {
-            var path = Path.Combine(FinancePhotoDirectory(store), name);
-            if (File.Exists(path))
-            {
-                File.Delete(path);
-            }
+            await storage.DeleteAsync(name, cancellationToken);
         }
-        catch (IOException)
+        catch (Exception exception) when (exception is IOException or ApiException)
         {
             // Ảnh mồ côi không chặn thao tác xoá khoản thu chi.
         }

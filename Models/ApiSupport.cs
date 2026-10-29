@@ -1,9 +1,9 @@
 using System.Collections.Concurrent;
 using System.Security.Cryptography;
 using System.Text;
-using MayAlbum.Services;
+using StudioCore.Services;
 
-namespace MayAlbum.Models;
+namespace StudioCore.Models;
 
 public sealed class ApiException : Exception
 {

@@ -1,7 +1,7 @@
-using MayAlbum.Models;
-using MayAlbum.Services;
+using StudioCore.Models;
+using StudioCore.Services;
 
-namespace MayAlbum.Api;
+namespace StudioCore.Api;
 
 internal static class ApiMappings
 {
@@ -150,7 +150,10 @@ internal static class ApiMappings
             settings.StudioName,
             settings.ContactEmail,
             !string.IsNullOrWhiteSpace(effectiveApiKey),
-            hint);
+            hint,
+            settings.Website,
+            settings.LogoUrl,
+            settings.LoginImageUrl);
     }
 
     public static SessionUserDto ToSessionUser(StudioUser user) =>

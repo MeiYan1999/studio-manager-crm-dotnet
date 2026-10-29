@@ -1,8 +1,8 @@
 using System.Globalization;
-using MayAlbum.Models;
-using MayAlbum.Services;
+using StudioCore.Models;
+using StudioCore.Services;
 
-namespace MayAlbum.Api;
+namespace StudioCore.Api;
 
 internal static class BoardEndpoints
 {

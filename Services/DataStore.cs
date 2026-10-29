@@ -2,9 +2,11 @@ using System.Text;
 using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Globalization;
-using MayAlbum.Models;
+using StudioCore.Models;
+using Npgsql;
+using NpgsqlTypes;
 
-namespace MayAlbum.Services;
+namespace StudioCore.Services;
 
 /// <summary>
 /// A deliberately small JSON-backed store. It keeps the app portable for a
@@ -21,6 +23,7 @@ public sealed class DataStore
 
     private readonly object _sync = new();
     private readonly string _storePath;
+    private readonly string _postgresConnectionString;
     private readonly string _configuredGoogleApiKey;
     private readonly ILogger<DataStore> _logger;
     private AppData _data;
@@ -42,39 +45,59 @@ public sealed class DataStore
         dataDirectory = Path.GetFullPath(dataDirectory, environment.ContentRootPath);
         Directory.CreateDirectory(dataDirectory);
         _storePath = Path.Combine(dataDirectory, "store.json");
+        _postgresConnectionString = NormalizePostgresConnectionString(
+            configuration.GetConnectionString("Postgres") ?? configuration["DATABASE_URL"] ?? "");
 
-        if (File.Exists(_storePath))
+        var persisted = false;
+        if (_postgresConnectionString.Length > 0)
         {
             try
             {
-                var json = File.ReadAllText(_storePath, Encoding.UTF8);
-                _data = JsonSerializer.Deserialize<AppData>(json, JsonOptions)
-                        ?? throw new InvalidOperationException("Tệp dữ liệu rỗng.");
-                var migrated = Migrate(_data, AdminCode);
-                Normalize(_data, AdminCode);
-                if (migrated)
+                EnsurePostgresSchema();
+                var json = ReadPostgresJson();
+                if (json is not null)
                 {
-                    SaveLocked();
-                    _logger.LogInformation(
-                        "Đã nâng cấp dữ liệu studio lên phiên bản {Version} tại {Path}",
-                        _data.SchemaVersion,
-                        _storePath);
+                    _data = Deserialize(json, "Dữ liệu PostgreSQL rỗng.");
+                    persisted = true;
+                    _logger.LogInformation("Đã tải dữ liệu studio từ PostgreSQL.");
                 }
-
-                _logger.LogInformation("Đã tải dữ liệu studio từ {Path}", _storePath);
+                else if (File.Exists(_storePath))
+                {
+                    _data = Deserialize(File.ReadAllText(_storePath, Encoding.UTF8), "Tệp dữ liệu rỗng.");
+                    _logger.LogInformation("Đang nhập dữ liệu {Path} vào PostgreSQL.", _storePath);
+                }
+                else
+                {
+                    _data = DemoAlbums.Create();
+                }
             }
             catch (Exception exception)
             {
                 throw new InvalidOperationException(
-                    $"Không thể đọc dữ liệu tại {_storePath}. Hãy kiểm tra hoặc khôi phục tệp JSON.", exception);
+                    "Không thể khởi tạo dữ liệu PostgreSQL. Hãy kiểm tra DATABASE_URL và quyền kết nối.", exception);
             }
+        }
+        else if (File.Exists(_storePath))
+        {
+            _data = Deserialize(File.ReadAllText(_storePath, Encoding.UTF8), "Tệp dữ liệu rỗng.");
+            persisted = true;
+            _logger.LogInformation("Đã tải dữ liệu studio từ {Path}", _storePath);
         }
         else
         {
             _data = DemoAlbums.Create();
-            Normalize(_data, AdminCode);
+        }
+
+        var migrated = Migrate(_data, AdminCode);
+        Normalize(_data, AdminCode);
+        if (!persisted || migrated)
+        {
             SaveLocked();
-            _logger.LogInformation("Đã tạo dữ liệu mẫu tại {Path}", _storePath);
+            _logger.LogInformation(
+                persisted
+                    ? "Đã nâng cấp dữ liệu studio lên phiên bản {Version}."
+                    : "Đã khởi tạo dữ liệu studio phiên bản {Version}.",
+                _data.SchemaVersion);
         }
     }
 
@@ -137,9 +160,115 @@ public sealed class DataStore
     private void SaveLocked()
     {
         var json = JsonSerializer.Serialize(_data, JsonOptions);
+        if (_postgresConnectionString.Length > 0)
+        {
+            using var connection = new NpgsqlConnection(_postgresConnectionString);
+            connection.Open();
+            using var command = new NpgsqlCommand(
+                """
+                INSERT INTO app_state (id, data, updated_at)
+                VALUES (1, @data, NOW())
+                ON CONFLICT (id) DO UPDATE SET data = EXCLUDED.data, updated_at = NOW()
+                """, connection);
+            command.Parameters.Add("data", NpgsqlDbType.Jsonb).Value = json;
+            command.ExecuteNonQuery();
+            return;
+        }
+
         var tempPath = _storePath + ".tmp";
         File.WriteAllText(tempPath, json, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
         File.Move(tempPath, _storePath, overwrite: true);
+    }
+
+    private static AppData Deserialize(string json, string emptyMessage) =>
+        JsonSerializer.Deserialize<AppData>(json, JsonOptions)
+        ?? throw new InvalidOperationException(emptyMessage);
+
+    private void EnsurePostgresSchema()
+    {
+        using var connection = new NpgsqlConnection(_postgresConnectionString);
+        connection.Open();
+        using var command = new NpgsqlCommand(
+            """
+            CREATE TABLE IF NOT EXISTS app_state (
+                id smallint PRIMARY KEY CHECK (id = 1),
+                data jsonb NOT NULL,
+                updated_at timestamptz NOT NULL DEFAULT NOW()
+            )
+            """, connection);
+        command.ExecuteNonQuery();
+    }
+
+    private string? ReadPostgresJson()
+    {
+        using var connection = new NpgsqlConnection(_postgresConnectionString);
+        connection.Open();
+        using var command = new NpgsqlCommand("SELECT data::text FROM app_state WHERE id = 1", connection);
+        return command.ExecuteScalar() as string;
+    }
+
+    private static string NormalizePostgresConnectionString(string value)
+    {
+        value = value.Trim();
+        if (!value.StartsWith("postgres://", StringComparison.OrdinalIgnoreCase) &&
+            !value.StartsWith("postgresql://", StringComparison.OrdinalIgnoreCase))
+        {
+            return value;
+        }
+
+        // Parse from the right-most @ so raw passwords containing @, # or other
+        // URI-reserved characters still work when pasted from a provider UI.
+        var schemeEnd = value.IndexOf("://", StringComparison.Ordinal) + 3;
+        var payload = value[schemeEnd..];
+        var at = payload.LastIndexOf('@');
+        var slash = at >= 0 ? payload.IndexOf('/', at + 1) : -1;
+        if (at <= 0 || slash <= at + 1)
+        {
+            throw new InvalidOperationException(
+                "Chuỗi PostgreSQL không hợp lệ. Hãy sao chép Session pooler URI đầy đủ từ Supabase.");
+        }
+
+        var credentials = payload[..at];
+        var authority = payload[(at + 1)..slash];
+        var database = payload[(slash + 1)..].Split('?', 2)[0];
+        var credentialSeparator = credentials.IndexOf(':');
+        var hostSeparator = authority.LastIndexOf(':');
+        if (credentialSeparator <= 0 || hostSeparator <= 0 ||
+            !int.TryParse(authority[(hostSeparator + 1)..], out var port))
+        {
+            throw new InvalidOperationException(
+                "Chuỗi PostgreSQL không hợp lệ. Hãy dùng Session pooler URI có dạng postgresql://user:password@host:5432/postgres.");
+        }
+
+        var username = credentials[..credentialSeparator];
+        var password = credentials[(credentialSeparator + 1)..];
+        if (password.Contains("[YOUR-PASSWORD]", StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidOperationException(
+                "Chuỗi PostgreSQL vẫn còn [YOUR-PASSWORD]. Hãy thay bằng mật khẩu database Supabase.");
+        }
+
+        return new NpgsqlConnectionStringBuilder
+        {
+            Host = authority[..hostSeparator],
+            Port = port,
+            Database = DecodeConnectionPart(database),
+            Username = Uri.UnescapeDataString(username),
+            Password = DecodeConnectionPart(password),
+            SslMode = SslMode.Prefer
+        }.ConnectionString;
+    }
+
+    private static string DecodeConnectionPart(string value)
+    {
+        try
+        {
+            return Uri.UnescapeDataString(value);
+        }
+        catch (UriFormatException)
+        {
+            return value;
+        }
     }
 
     private static bool Migrate(AppData data, string adminCode)

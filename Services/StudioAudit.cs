@@ -1,6 +1,6 @@
-using MayAlbum.Models;
+using StudioCore.Models;
 
-namespace MayAlbum.Services;
+namespace StudioCore.Services;
 
 /// <summary>
 /// Ghi nhật ký thao tác toàn studio. Mọi thay đổi quan trọng đều đi qua đây

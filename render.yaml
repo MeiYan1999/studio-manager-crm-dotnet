@@ -1,0 +1,36 @@
+services:
+  - type: web
+    name: studio-manager-crm-dotnet
+    runtime: docker
+    plan: starter
+    healthCheckPath: /api/health
+    autoDeployTrigger: commit
+    envVars:
+      - key: ASPNETCORE_ENVIRONMENT
+        value: Production
+      - key: ASPNETCORE_URLS
+        value: http://0.0.0.0:10000
+      - key: AdminCode
+        sync: false
+      - key: ConnectionStrings__Postgres
+        fromDatabase:
+          name: studio-manager-crm-db
+          property: connectionString
+      - key: Storage__Provider
+        value: s3
+      - key: Storage__Endpoint
+        sync: false
+      - key: Storage__Region
+        value: auto
+      - key: Storage__Bucket
+        sync: false
+      - key: Storage__AccessKey
+        sync: false
+      - key: Storage__SecretKey
+        sync: false
+
+databases:
+  - name: studio-manager-crm-db
+    plan: basic-256mb
+    databaseName: studio_manager_crm
+    user: studio_manager_crm

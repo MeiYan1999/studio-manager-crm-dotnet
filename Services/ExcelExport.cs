@@ -2,7 +2,7 @@ using System.Globalization;
 using System.IO.Compression;
 using System.Text;
 
-namespace MayAlbum.Services;
+namespace StudioCore.Services;
 
 public enum ExcelColumnKind
 {

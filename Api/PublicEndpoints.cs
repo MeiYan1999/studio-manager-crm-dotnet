@@ -1,12 +1,40 @@
-using MayAlbum.Models;
-using MayAlbum.Services;
+using StudioCore.Models;
+using StudioCore.Services;
 
-namespace MayAlbum.Api;
+namespace StudioCore.Api;
 
 public static class PublicEndpoints
 {
     public static void Map(WebApplication app)
     {
+        app.MapGet("/api/public/website", (DataStore store) => Results.Ok(store.Read(data => new
+        {
+            data.Settings.StudioName,
+            data.Settings.LogoUrl,
+            data.Settings.LoginImageUrl,
+            data.Settings.Website
+        })));
+
+        app.MapGet("/api/public/logo", async (HttpContext context, DataStore store, IObjectStorage storage) =>
+        {
+            var logo = store.Read(data => new { data.Settings.LogoKey, data.Settings.LogoContentType });
+            if (logo.LogoKey.Length == 0) return Results.NotFound();
+            var stored = await storage.GetAsync(logo.LogoKey, context.RequestAborted);
+            if (stored is null) return Results.NotFound();
+            context.Response.Headers.XContentTypeOptions = "nosniff";
+            context.Response.Headers.CacheControl = "no-cache";
+            return Results.Stream(stored.Content, logo.LogoContentType);
+        });
+        app.MapGet("/api/public/login-image", async (HttpContext context, DataStore store, IObjectStorage storage) =>
+        {
+            var logo = store.Read(data => new { data.Settings.LoginImageKey, data.Settings.LoginImageContentType });
+            if (logo.LoginImageKey.Length == 0) return Results.NotFound();
+            var stored = await storage.GetAsync(logo.LoginImageKey, context.RequestAborted);
+            if (stored is null) return Results.NotFound();
+            context.Response.Headers.XContentTypeOptions = "nosniff";
+            context.Response.Headers.CacheControl = "no-cache";
+            return Results.Stream(stored.Content, logo.LoginImageContentType);
+        });
         var group = app.MapGroup("/api/public/albums");
 
         group.MapGet("/{token}", (string token, DataStore store) =>

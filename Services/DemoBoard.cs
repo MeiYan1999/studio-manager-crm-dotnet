@@ -1,7 +1,7 @@
 using System.Globalization;
-using MayAlbum.Models;
+using StudioCore.Models;
 
-namespace MayAlbum.Services;
+namespace StudioCore.Services;
 
 internal static class DemoBoard
 {
@@ -20,7 +20,7 @@ internal static class DemoBoard
         var board = new TaskBoard
         {
             Id = "studio-board",
-            Title = "Nhịp làm việc Mây",
+            Title = "Nhịp làm việc StudioCore",
             Description = "Theo dõi từng album từ lúc nhận yêu cầu đến khi trao ảnh cho khách. Kéo thẻ giữa các danh sách để cập nhật tiến độ.",
             Theme = "ink",
             CreatedAt = now.AddDays(-90),

@@ -715,7 +715,7 @@ export function ordersView({ session }) {
         <header class="print-head">
           <div>
             <p class="print-kicker">HOÁ ĐƠN THANH TOÁN</p>
-            <h1>${escapeHtml(invoice.studioName || 'Mây Studio')}</h1>
+            <h1>${escapeHtml(invoice.studioName || 'StudioCore')}</h1>
             <p>${escapeHtml(invoice.studioEmail || '')}</p>
           </div>
           <div class="print-meta">
@@ -1555,7 +1555,7 @@ export function reportsView({ session }) {
       <header class="print-head">
         <div>
           <p class="print-kicker">BÁO CÁO DOANH THU</p>
-          <h1>${escapeHtml(session.studioName || 'Mây Studio')}</h1>
+          <h1>${escapeHtml(session.studioName || 'StudioCore')}</h1>
           <p>Từ ${escapeHtml(dateOrDash(report.from))} đến ${escapeHtml(dateOrDash(report.to))}</p>
         </div>
       </header>

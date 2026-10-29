@@ -6,3 +6,5 @@ data/
 *.user
 *.suo
 appsettings.Development.json
+TestResults/
+__pycache__/

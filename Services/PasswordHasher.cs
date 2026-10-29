@@ -1,6 +1,6 @@
 using System.Security.Cryptography;
 
-namespace MayAlbum.Services;
+namespace StudioCore.Services;
 
 /// <summary>
 /// PBKDF2-HMAC-SHA256 password hashing. The encoded value contains the

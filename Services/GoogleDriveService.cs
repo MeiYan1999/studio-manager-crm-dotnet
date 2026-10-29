@@ -2,7 +2,7 @@ using System.Net;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 
-namespace MayAlbum.Services;
+namespace StudioCore.Services;
 
 public sealed class DriveException : Exception
 {

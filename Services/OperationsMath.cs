@@ -1,7 +1,7 @@
 using System.Globalization;
-using MayAlbum.Models;
+using StudioCore.Models;
 
-namespace MayAlbum.Services;
+namespace StudioCore.Services;
 
 /// <summary>
 /// Các phép tính dùng chung cho chấm công và bảng lương: giờ làm được làm tròn

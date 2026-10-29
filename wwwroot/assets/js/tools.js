@@ -389,7 +389,7 @@ export function photoFilterView({ session }) {
 
               <div data-filter-result></div>
 
-              <p class="filter-privacy">${icon('lock')} Ảnh được đọc và sao chép trực tiếp trên máy tính. Mây Album không tải ảnh lên máy chủ.</p>
+              <p class="filter-privacy">${icon('lock')} Ảnh được đọc và sao chép trực tiếp trên máy tính. StudioCore không tải ảnh lên máy chủ.</p>
             </div>
           </section>
         </div>
@@ -692,7 +692,7 @@ export function photoFilterView({ session }) {
         } catch (error) {
           if (error?.name === 'AbortError') return;
           const message = error?.name === 'SecurityError'
-            ? 'Trình duyệt chặn chọn thư mục trong khung nhúng. Hãy mở Mây Album trong một tab riêng.'
+            ? 'Trình duyệt chặn chọn thư mục trong khung nhúng. Hãy mở StudioCore trong một tab riêng.'
             : 'Chưa chọn được thư mục. Hãy kiểm tra quyền truy cập và thử lại.';
           showToast(message, 'error');
         }
@@ -723,7 +723,7 @@ export function photoFilterView({ session }) {
         } catch (error) {
           if (error?.name === 'AbortError') return;
           const message = error?.name === 'SecurityError'
-            ? 'Trình duyệt chặn chọn thư mục trong khung nhúng. Hãy mở Mây Album trong một tab riêng.'
+            ? 'Trình duyệt chặn chọn thư mục trong khung nhúng. Hãy mở StudioCore trong một tab riêng.'
             : 'Chưa chọn được thư mục lưu. Hãy kiểm tra quyền truy cập và thử lại.';
           showToast(message, 'error');
         }
@@ -1031,7 +1031,7 @@ export function photoFilterView({ session }) {
         notice.innerHTML = `
           <div class="inline-alert inline-alert--error" role="alert">
             ${icon('alertCircle')}
-            <p>Trình duyệt này chưa hỗ trợ chọn thư mục trực tiếp. Hãy mở Mây Album bằng <strong>Chrome</strong> hoặc <strong>Edge</strong> trên máy tính để lọc ảnh. Bạn vẫn có thể chọn album và sao chép mã ở cột bên trái.</p>
+            <p>Trình duyệt này chưa hỗ trợ chọn thư mục trực tiếp. Hãy mở StudioCore bằng <strong>Chrome</strong> hoặc <strong>Edge</strong> trên máy tính để lọc ảnh. Bạn vẫn có thể chọn album và sao chép mã ở cột bên trái.</p>
           </div>
         `;
         pickSourceButton.disabled = true;

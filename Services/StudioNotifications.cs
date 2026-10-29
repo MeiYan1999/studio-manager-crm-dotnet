@@ -1,6 +1,6 @@
-using MayAlbum.Models;
+using StudioCore.Models;
 
-namespace MayAlbum.Services;
+namespace StudioCore.Services;
 
 /// <summary>
 /// Tạo thông báo trong hộp thư studio. Mỗi loại có công tắc riêng trong cài đặt;

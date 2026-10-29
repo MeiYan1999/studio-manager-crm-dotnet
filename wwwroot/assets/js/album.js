@@ -9,7 +9,8 @@ import {
   normalizeSearch,
   pluralPhotos,
   setButtonLoading,
-  showToast
+  showToast,
+  copyText
 } from './ui.js';
 
 const ACTIVE_BODY_CLASSES = ['drawer-open', 'lightbox-open'];
@@ -28,7 +29,7 @@ function normalizeCodeSearch(value) {
 }
 
 function publicWordmark(className = '') {
-  return `<a class="wordmark ${className}" href="/" aria-label="Mây Album — trang chủ">mây<span>.</span><small>album</small></a>`;
+  return `<a class="wordmark ${className}" href="/" aria-label="StudioCore — trang chủ">StudioCore<span>.</span><small>album</small></a>`;
 }
 
 function loadingView() {
@@ -71,7 +72,7 @@ export function publicAlbumView({ token }) {
         const album = await api(`/api/public/albums/${encodeURIComponent(token)}`);
         if (disposed) return;
         root.innerHTML = albumPage(album);
-        document.title = `${album.title} · ${album.studioName || 'Mây Album'}`;
+        document.title = `${album.title} · ${album.studioName || 'StudioCore'}`;
         teardown = setupAlbum(root, album);
       } catch (error) {
         if (disposed || error.name === 'AbortError') return;
@@ -81,7 +82,7 @@ export function publicAlbumView({ token }) {
           code: error.code,
           action: 'home'
         });
-        document.title = 'Album không khả dụng · Mây Album';
+        document.title = 'Album không khả dụng · StudioCore';
       }
     },
     cleanup() {
@@ -123,7 +124,7 @@ function publicErrorPage({ title, message, code = '', action = 'home', path = ''
           <span class="album-error__cloud"></span>
           <span class="album-error__star">${icon('sparkles')}</span>
         </div>
-        <p class="eyebrow"><span class="eyebrow__dot"></span>${code === 'album_not_found' ? 'Liên kết riêng tư' : 'Mây Album'}</p>
+        <p class="eyebrow"><span class="eyebrow__dot"></span>${code === 'album_not_found' ? 'Liên kết riêng tư' : 'StudioCore'}</p>
         <h1>${escapeHtml(title)}</h1>
         <p class="album-error__message">${escapeHtml(message)}</p>
         ${path ? `<p class="album-error__path"><code>${escapeHtml(path)}</code></p>` : ''}
@@ -133,7 +134,7 @@ function publicErrorPage({ title, message, code = '', action = 'home', path = ''
         </div>
         <p class="album-error__hint">${icon('mail')} Nếu bạn cho rằng đây là nhầm lẫn, hãy liên hệ trực tiếp studio đã gửi album.</p>
       </main>
-      ${albumFooter({ studioName: 'Mây Studio', studioEmail: '', minimal: true })}
+      ${albumFooter({ studioName: 'StudioCore', studioEmail: '', minimal: true })}
     </div>
   `;
 }
@@ -152,7 +153,7 @@ function albumPage(album) {
         ${publicWordmark()}
         <p class="album-nav__privacy">${icon('lock')} <span>Album riêng tư</span></p>
         <div class="album-nav__actions">
-          <span class="album-nav__studio">${escapeHtml(album.studioName || 'Mây Studio')}</span>
+          <span class="album-nav__studio">${escapeHtml(album.studioName || 'StudioCore')}</span>
           ${hasSelection ? `
             <button class="btn btn--primary btn--compact album-nav__select" type="button" data-open-selection>
               ${icon('heart')}
@@ -208,7 +209,7 @@ function albumPage(album) {
               </div>
             </div>
             <p class="album-hero__caption">
-              <span>${escapeHtml(album.location || album.studioName || 'Mây Studio')}</span>
+              <span>${escapeHtml(album.location || album.studioName || 'StudioCore')}</span>
               <span>${album.eventDate ? escapeHtml(formatDate(album.eventDate)) : escapeHtml(album.studioName || '')}</span>
             </p>
           </div>
@@ -264,7 +265,7 @@ function albumPage(album) {
 
         <section class="album-signoff">
           <span class="album-signoff__mark">${icon('camera')}</span>
-          <p class="eyebrow">Từ ${escapeHtml(album.studioName || 'Mây Studio')}</p>
+          <p class="eyebrow">Từ ${escapeHtml(album.studioName || 'StudioCore')}</p>
           <h2>Cảm ơn bạn đã<br><em>giữ lại cùng chúng tôi.</em></h2>
           <p>${hasSelection
             ? 'Khi bạn gửi lựa chọn, studio sẽ nhận được danh sách ảnh yêu thích và bắt đầu chuẩn bị cho bước tiếp theo.'
@@ -363,6 +364,7 @@ function selectionDrawer(album, selectedCount) {
 
         <footer class="selection-drawer__foot" data-drawer-foot>
           <p>${icon('lock')} Studio sẽ nhận được danh sách ngay sau khi bạn gửi.</p>
+          <button class="btn btn--ghost btn--full" type="button" data-copy-selected-codes ${selectedCount ? '' : 'disabled'}>${icon('copy')} Sao chép mã ảnh đã chọn</button>
           <button class="btn btn--primary btn--lg btn--full" type="button" data-submit-selection>
             ${icon('send')} Gửi lựa chọn cho studio
           </button>
@@ -377,6 +379,7 @@ function selectionDrawer(album, selectedCount) {
           <p class="drawer-success__time">${icon('clock')} <span data-success-time></span></p>
           <blockquote data-success-note hidden></blockquote>
           <div class="drawer-success__actions">
+            <button class="btn btn--ghost btn--full" type="button" data-copy-selected-codes>${icon('copy')} Sao chép mã ảnh đã chọn</button>
             <button class="btn btn--primary btn--full" type="button" data-close-drawer>${icon('image')} Xem lại album</button>
             <button class="btn btn--ghost btn--full" type="button" data-edit-selection>Chỉnh sửa lựa chọn</button>
           </div>
@@ -391,15 +394,15 @@ function albumFooter({ studioName, studioEmail = '', minimal = false }) {
     <footer class="album-footer">
       <div class="album-footer__inner">
         ${publicWordmark('wordmark--light')}
-        <p class="album-footer__note">${minimal ? 'Một sản phẩm của Mây Album.' : `Album được chia sẻ riêng cho khách hàng của ${escapeHtml(studioName || 'Mây Studio')}.`}</p>
+        <p class="album-footer__note">${minimal ? 'Một sản phẩm của StudioCore.' : `Album được chia sẻ riêng cho khách hàng của ${escapeHtml(studioName || 'StudioCore')}.`}</p>
         <div class="album-footer__links">
           ${studioEmail ? `<a href="mailto:${escapeAttr(studioEmail)}">${escapeHtml(studioEmail)}</a>` : ''}
           <span>${icon('lock')} Liên kết riêng tư</span>
         </div>
       </div>
       <div class="album-footer__bottom">
-        <span>© ${new Date().getFullYear()} ${escapeHtml(studioName || 'Mây Studio')}</span>
-        <span>Made with ${icon('heart')} by Mây Album</span>
+        <span>© ${new Date().getFullYear()} ${escapeHtml(studioName || 'StudioCore')}</span>
+        <span>Made with ${icon('heart')} by StudioCore</span>
       </div>
     </footer>
   `;
@@ -557,6 +560,9 @@ function setupAlbum(root, album) {
   const renderDrawerList = () => {
     if (!drawerList) return;
     const chosen = selectedPhotos();
+    root.querySelectorAll('[data-copy-selected-codes]').forEach(button => {
+      button.disabled = chosen.length === 0 || state.busy.size > 0;
+    });
     drawerList.innerHTML = chosen.map(photo => `
       <article class="drawer-item">
         <img src="${escapeAttr(photo.thumbUrl)}" alt="${escapeAttr(photo.code)}" loading="lazy">
@@ -916,6 +922,18 @@ function setupAlbum(root, album) {
   // ------------------------------------------------------------ events
 
   const onClick = event => {
+    const copyButton = event.target.closest('[data-copy-selected-codes]');
+    if (copyButton) {
+      const codes = selectedPhotos()
+        .map(photo => photo.code)
+        .sort((a, b) => a.localeCompare(b, 'vi', { numeric: true }));
+      if (codes.length) {
+        copyText(codes.join(',')).then(ok => {
+          showToast(ok ? `Đã sao chép ${codes.length} mã ảnh.` : 'Không thể sao chép mã ảnh. Hãy thử lại.', ok ? 'success' : 'error');
+        });
+      }
+      return;
+    }
     const openSelection = event.target.closest('[data-open-selection]');
     if (openSelection) {
       openDrawer(openSelection);
@@ -1031,7 +1049,7 @@ function setupAlbum(root, album) {
       state.lightbox = null;
     }
     ACTIVE_BODY_CLASSES.forEach(name => document.body.classList.remove(name));
-    document.title = 'Mây Album';
+    document.title = 'StudioCore';
   };
 }
 

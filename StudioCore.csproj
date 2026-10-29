@@ -9,8 +9,15 @@
 
   <ItemGroup>
     <!-- Static frontend is plain HTML/CSS/ES modules and does not require a build step. -->
+    <Compile Remove="tests/**/*.cs" />
+    <Content Remove="tests/**" />
+    <None Remove="tests/**" />
     <Content Remove="data\**" />
     <None Remove="data\**" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Npgsql" Version="8.0.6" />
   </ItemGroup>
 
 </Project>

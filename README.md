@@ -1,6 +1,6 @@
-# Mây Album
+# StudioCore
 
-Mây Album là một web app nhỏ gọn để studio tạo album ảnh riêng tư từ thư mục Google Drive, gửi liên kết cho khách hàng và nhận lại danh sách ảnh khách yêu thích.
+StudioCore là ứng dụng quản lý một studio: album ảnh từ Google Drive và lựa chọn của khách hàng, CRM, lịch chụp, công việc, bán hàng, tài chính và vận hành. Backend là ASP.NET Core Minimal API (.NET 8); frontend dùng HTML/CSS/JavaScript ES modules thuần, không có bước build Node.js.
 
 - Giao diện tiếng Việt, tông màu kem – mực – terracotta.
 - Tạo album từ thư mục Google Drive công khai (có thể đọc cả thư mục con).
@@ -12,17 +12,55 @@ Mây Album là một web app nhỏ gọn để studio tạo album ảnh riêng t
 - Tài khoản riêng cho từng thành viên với hai vai trò quản trị viên/nhân viên; mỗi thẻ có nhật ký ghi lại người tạo, sửa hoặc kéo thẻ.
 - Có sẵn hai album mẫu để thử ngay, không cần Google Drive.
 
+## Kiến trúc và các phân hệ
+
+- `Api/`: Minimal API cho auth, album công khai, quản trị, CRM, bán hàng và vận hành.
+- `Models/`: dữ liệu, request/DTO, session trong RAM và endpoint filters kiểm tra quyền.
+- `Services/DataStore.cs`: singleton giữ trạng thái trong RAM, lưu JSON local hoặc một bản ghi JSONB trong PostgreSQL qua Npgsql 8.0.6; không dùng Entity Framework.
+- `wwwroot/assets/js/app.js`: router phía trình duyệt. `api.js` gọi API cùng origin; các module còn lại dựng giao diện theo phân hệ.
+- `ObjectStorage`: local hoặc S3 tương thích (ký AWS Signature V4); `GoogleDriveService`: Drive API v3 cho thư mục công khai.
+- CRM: khách hàng, gói dịch vụ, nhân sự, lịch chụp và nhật ký studio.
+- Bán hàng: đơn hàng, thanh toán, hóa đơn, hợp đồng, lịch thanh toán và báo cáo.
+- Vận hành: thu chi, chứng từ, bảng lương, chấm công, phân ca tuần, trang phục, concept và phiếu thuê/trả.
+- Quản trị: tài khoản admin/employee, quyền theo phân hệ, bắt buộc đổi mật khẩu, nội dung website, logo và ảnh đăng nhập.
+- Nhập backup CRM có xem trước (`DryRun`) và tùy chọn xử lý bản ghi hiện có. Thông báo nằm trong ứng dụng; quét quá hạn được kích hoạt khi gọi API thông báo, không có background scheduler.
+
 ## Chạy ứng dụng
 
 Yêu cầu: [.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8.0).
 
 ```powershell
-dotnet run
+dotnet restore StudioCore.csproj
+dotnet run --project StudioCore.csproj
 ```
 
-Mở http://localhost:5080.
+Mở http://localhost:5080, quản trị tại `/admin`, kiểm tra server tại `/api/health`.
+Profile trong `Properties/launchSettings.json` dùng môi trường Development và cổng 5080.
+Để chọn cổng bằng `ASPNETCORE_URLS`, chạy với `--no-launch-profile`.
+Không cần Node.js để chạy ứng dụng; Python/Node chỉ phục vụ các script kiểm thử.
 
-Lần chạy đầu tiên, ứng dụng sẽ tạo `data/store.json` và nạp hai album mẫu:
+Chạy local mặc định dùng `data/`. Nếu shell có `ConnectionStrings__Postgres` hoặc
+`DATABASE_URL`, ứng dụng sẽ kết nối database đó ngay khi khởi động. Không dùng cấu hình
+production khi thử nghiệm: startup có thể tạo bảng, nhập JSON và nâng cấp dữ liệu.
+Xem [kiểm thử backend](tests/README.md) để chạy server với dữ liệu tạm tự động.
+
+## Đưa lên Render
+
+Repository có sẵn `Dockerfile` và `render.yaml`. Trên Render, chọn **New → Blueprint**,
+kết nối repository này và nhập một mật khẩu mạnh cho biến bí mật `AdminCode`.
+Blueprint tạo web service và PostgreSQL. Ảnh chứng từ được lưu trong object storage
+tương thích S3 như Cloudflare R2; Render sẽ yêu cầu các thông tin bucket khi tạo Blueprint.
+
+Với Cloudflare R2, tạo một bucket riêng tư và một API token có quyền **Object Read & Write**
+cho đúng bucket đó. Điền endpoint dạng `https://<ACCOUNT_ID>.r2.cloudflarestorage.com`,
+tên bucket, Access Key ID và Secret Access Key vào các biến Render tương ứng. Không bật
+Public Development URL; ứng dụng đọc ảnh qua API đã xác thực.
+
+Sau khi deploy xong, mở địa chỉ Render cấp và đăng nhập bằng tài khoản `admin` cùng
+mật khẩu đã nhập ở `AdminCode`. Đổi mật khẩu trong **Cài đặt studio → Tài khoản studio**
+ngay sau lần đăng nhập đầu tiên.
+
+Lần chạy đầu tiên nếu chưa có dữ liệu và chưa cấu hình PostgreSQL, ứng dụng tạo `data/store.json` và nạp hai album mẫu:
 
 | Album | Liên kết |
 | --- | --- |
@@ -34,6 +72,35 @@ Trang quản trị: http://localhost:5080/admin
 Tài khoản quản trị mặc định: `admin` · mật khẩu `studio2026`.
 
 > Hãy đổi mật khẩu này ngay trong **Cài đặt studio → Tài khoản studio** trước khi đưa ứng dụng lên mạng. Xem phần [Bảo mật](#bảo-mật).
+
+## Thu chi, xuất Excel và tên studio
+
+Trong **Tài chính & lương → Thu chi**, bạn có thể tạo, sửa hoặc xoá khoản
+thu/chi theo tháng; lọc **Tất cả / Thu / Chi**; nhập ghi chú và gắn tối đa
+6 ảnh chứng từ cho mỗi khoản. Mỗi ảnh JPG/PNG/WebP tối đa 5 MB và có chú
+thích riêng. Có thể sửa chú thích hoặc bỏ ảnh trong biểu mẫu chỉnh sửa.
+Nếu tải ảnh lỗi giữa chừng, giữ biểu mẫu và bấm lưu để thử lại các ảnh còn
+lại; các khoản và ảnh đã lưu thành công không được gửi lại.
+
+- **Thu chi → Xuất Excel**: xuất tháng và bộ lọc đang chọn, kèm ghi chú,
+  tên ảnh/chú thích và tổng thu, tổng chi, chênh lệch. Ảnh không được nhúng
+  vào tệp Excel.
+- **Tài chính & lương → Tổng quan / Bảng lương → Xuất Excel**: tải workbook
+  gồm ba sheet Tổng quan, Bảng lương và Thu chi của tháng đang chọn.
+- **Hợp đồng → Xuất Excel**: xuất danh sách theo trạng thái và từ khoá hiện tại.
+- **Cài đặt studio → Thông tin studio**: đổi tên studio và lưu. Tên mới có
+  hiệu lực ngay trong phiên hiện tại và vẫn giữ khi tải lại trang.
+
+Thu nhập ghi tay được tính là **Thu khác**, tách khỏi thanh toán đơn hàng
+và hợp đồng; tránh ghi lại cùng một khoản thanh toán ở cả hai nơi. Các khoản
+chi cũ được giữ nguyên là khoản chi khi nâng cấp dữ liệu lên schema 8.
+
+Ảnh chứng từ chỉ truy cập qua API có quyền tài chính. Với storage local, ảnh nằm trong
+`<Data:Directory>/finance-photos/`; với provider `s3`, nội dung ảnh nằm trong bucket riêng tư.
+Sao lưu cần giữ cả dữ liệu nghiệp vụ và các object/file ảnh tương ứng; xem mục Dữ liệu.
+
+Xem [kiểm thử tài chính](tests/README.md) để chạy lại kiểm thử API và trình duyệt
+trên dữ liệu thử riêng.
 
 ## Kết nối Google Drive
 
@@ -119,7 +186,7 @@ Trang **Bảng công việc** (`/admin/board`) giữ nhịp sản xuất của s
 - Menu của mỗi danh sách cho phép đổi tên, đổi màu, di chuyển sang trái/phải hoặc xoá. Danh sách mới thêm ở cuối bảng.
 - **Tùy chỉnh bảng** đổi tên, mô tả, chọn một trong năm nền (Mực ấm, Đất nung, Vườn chiều, Chiều muộn, Giấy kraft), chỉnh **màu nền và màu chữ của thẻ** (có xem trước và nút đặt lại mặc định) và quản lý bộ nhãn dùng chung. Màu thẻ áp dụng cho toàn bảng; mặc định là nền sáng, chữ mực đậm để luôn dễ đọc.
 - Mỗi thẻ có **Nhật ký hoạt động**: ai đã tạo, sửa hoặc kéo thẻ, thời điểm và các thay đổi chi tiết (tên, mô tả, hạn, nhãn, checklist, album, danh sách). Nhấn **Chi tiết** để mở danh sách thay đổi. Thẻ cũ bắt đầu với nhật ký trống; mỗi thẻ giữ tối đa 60 hoạt động gần nhất.
-- Bảng được lưu trong `data/store.json` cùng album, tài khoản và cài đặt studio. Dữ liệu phiên bản 1 hoặc 2 được tự động nâng cấp lên phiên bản 3 khi khởi động, không làm mất album, thẻ hay cài đặt cũ.
+- Bảng được lưu trong `data/store.json` cùng album, tài khoản và cài đặt studio. Dữ liệu cũ được tự động nâng cấp qua các bước migration đến phiên bản 8 khi khởi động, không làm mất album, thẻ hay cài đặt cũ.
 - Khi xoá một album, liên kết album trên các thẻ liên quan cũng được gỡ bỏ; thẻ vẫn giữ nguyên.
 
 ### Tài khoản studio
@@ -136,7 +203,7 @@ Tên đăng nhập gồm 3–32 ký tự thường không dấu (`a-z`, `0-9`, d
 Hai vai trò:
 
 - **Quản trị viên** xem được mọi trang, quản lý tài khoản và cài đặt studio.
-- **Nhân viên** dùng được tổng quan, bảng công việc, album và công cụ lọc ảnh, nhưng không thấy trang Cài đặt.
+- **Nhân viên** mặc định dùng tổng quan, bảng công việc, album và công cụ lọc ảnh. Quản trị viên có thể cấp quyền riêng cho CRM, bán hàng, tài chính, chấm công, trang phục, thông báo và nhật ký. Danh sách quyền đã cấu hình rỗng nghĩa là không có quyền phân hệ. Cài đặt studio và quản lý tài khoản vẫn yêu cầu vai trò admin ở backend.
 
 Không thể tự đổi vai trò, tự tạm khoá tài khoản đang đăng nhập hoặc làm mất quản trị viên hoạt động cuối cùng. Tài khoản bị tạm khoá sẽ bị đăng xuất ngay.
 
@@ -152,19 +219,34 @@ Trang **Lọc ảnh theo mã** (`/admin/tools`) giúp studio lấy đúng các t
 
 Ảnh gốc được giữ nguyên. Ảnh khớp được sao chép vào thư mục nhận; nếu tên đã tồn tại, ứng dụng thêm hậu tố `-2`, `-3`… để không ghi đè. Thư mục nhận được bỏ qua khi quét để tránh tự sao chép lại.
 
-Công cụ dùng File System Access API nên cần **Chrome hoặc Edge trên máy tính** và một secure context (`localhost` hoặc HTTPS). Ảnh được đọc và ghi trực tiếp trên máy; Mây Album không tải ảnh lên máy chủ.
+Công cụ dùng File System Access API nên cần **Chrome hoặc Edge trên máy tính** và một secure context (`localhost` hoặc HTTPS). Ảnh được đọc và ghi trực tiếp trên máy; StudioCore không tải ảnh lên máy chủ.
 
 ## Cấu hình
 
-Các giá trị chính trong `appsettings.json`:
+Cấu hình được đọc qua ASP.NET Core configuration (JSON và biến môi trường). Dấu `:` trong tên khóa tương ứng `__` khi đặt biến môi trường. Không đưa credentials thật vào mã nguồn hoặc tài liệu.
 
 | Khoá | Mặc định | Ý nghĩa |
 | --- | --- | --- |
-| `AdminCode` | `studio2026` | Mật khẩu khởi tạo cho tài khoản quản trị `admin` khi dữ liệu chưa có tài khoản |
+| `AdminCode` | mật khẩu phát triển mặc định | Mật khẩu bootstrap và mã đăng nhập tương thích cũ; phải đặt riêng khi triển khai |
 | `GoogleDrive:ApiKey` | rỗng | API key Google Drive |
 | `Data:Directory` | `data` | Thư mục chứa `store.json` |
+| `ConnectionStrings:Postgres` | rỗng | Chuỗi kết nối PostgreSQL; khi có giá trị, PostgreSQL thay cho `store.json` |
+| `Storage:Provider` | `local` | Đặt `s3` để lưu ảnh chứng từ, logo và ảnh đăng nhập trong object storage |
+| `Storage:Endpoint` | rỗng | S3 endpoint, ví dụ endpoint bucket Cloudflare R2 |
+| `Storage:Region` | xem cấu hình triển khai | Bắt buộc khi dùng S3; phải phù hợp nhà cung cấp |
+| `Storage:Bucket` | rỗng | Tên bucket riêng tư |
+| `Storage:AccessKey` | rỗng | Access key của bucket |
+| `Storage:SecretKey` | rỗng | Secret key của bucket |
 
-`AdminCode` chỉ được dùng để tạo tài khoản quản trị đầu tiên. Sau khi dữ liệu đã có tài khoản, đổi biến này không đổi mật khẩu đang dùng; hãy đặt lại mật khẩu trong **Cài đặt studio → Tài khoản studio**.
+`AdminCode` tạo mật khẩu tài khoản admin đầu tiên. Đổi biến này không đổi password hash
+của tài khoản đã có, nhưng **có đổi mã đăng nhập legacy sau khi khởi động lại**.
+`POST /api/auth/login` hiện vẫn chấp nhận body có `code` khi không có `username` và đăng
+nhập quản trị viên hoạt động đầu tiên. Đổi mật khẩu tài khoản không thu hồi mã legacy này.
+Luồng này được ghi nhận để sửa riêng; bản cập nhật tài liệu/test không thay đổi auth.
+
+`ConnectionStrings:Postgres` được ưu tiên trước `DATABASE_URL`. Khi biến thứ nhất được
+đặt thành chuỗi rỗng, fallback `DATABASE_URL` không được dùng (code dùng toán tử `??`).
+Các ví dụ chỉ dùng placeholder; cấu hình bí mật thật qua môi trường/secret manager.
 
 Ví dụ đặt mật khẩu quản trị ban đầu bằng biến môi trường:
 
@@ -177,18 +259,30 @@ dotnet run
 
 ```powershell
 $env:ASPNETCORE_URLS = "http://localhost:5090"
-dotnet run
+dotnet run --no-launch-profile
 ```
 
 ## Dữ liệu
 
-- Toàn bộ dữ liệu nằm trong `data/store.json`, gồm album, cài đặt studio, tài khoản và bảng công việc.
-- Tệp dùng `schemaVersion` 3. Khi mở dữ liệu phiên bản 1 hoặc 2, ứng dụng tự nâng cấp, thêm bảng mẫu hoặc tài khoản quản trị ban đầu và giữ nguyên album, thẻ, lựa chọn cùng cài đặt hiện có. Nhật ký của thẻ cũ bắt đầu trống.
-- Mật khẩu chỉ được lưu dưới dạng băm PBKDF2-HMAC-SHA256 (120.000 vòng, salt riêng cho từng tài khoản); không có mật khẩu dạng văn bản thuần trong `store.json`.
-- Ghi tệp theo kiểu atomic: ghi tệp tạm rồi thay thế, tránh hỏng dữ liệu khi đang ghi.
-- Để khôi phục dữ liệu mẫu, dừng ứng dụng, xoá `data/store.json` rồi chạy lại.
-- Nên sao lưu `data/store.json` định kỳ.
-- Google API key nhập trong trang Cài đặt được lưu trong `store.json` và ghi đè key trong `appsettings.json`. Tệp này chứa dữ liệu riêng tư, không nên commit hoặc chia sẻ công khai.
+- Không cấu hình PostgreSQL: toàn bộ trạng thái lưu trong `<Data:Directory>/store.json`.
+- Có `ConnectionStrings:Postgres` hoặc fallback `DATABASE_URL`: ứng dụng tạo bảng
+  `app_state` nếu chưa có, đọc/ghi toàn bộ trạng thái vào cột `data` kiểu JSONB tại `id = 1`.
+  Đây chưa phải mô hình bảng quan hệ riêng cho từng thực thể.
+- Nếu bản ghi PostgreSQL chưa tồn tại nhưng JSON local có sẵn, startup nhập JSON đó.
+  Khi database đã có dữ liệu, PostgreSQL là nguồn chính; JSON local không được cập nhật như bản sao lưu.
+- Migration hiện nâng cấp dữ liệu cũ đến schema **8** (model `AppData` còn khởi tạo giá trị 7;
+  `DataStore` áp dụng migration khi mở). Các khoản chi cũ giữ loại `expense`.
+- Startup còn normalize dữ liệu; sao lưu trước khi chạy phiên bản mới trên dữ liệu thật.
+- Ghi local dùng file tạm rồi thay thế. Khóa trong RAM chỉ bảo vệ một tiến trình;
+  callback ghi hoặc thao tác lưu lỗi không rollback trạng thái RAM đã thay đổi.
+- Mỗi lần ghi serialize toàn bộ trạng thái. Không chạy nhiều instance ghi cùng database/file:
+  các snapshot RAM độc lập có thể ghi đè cập nhật của nhau.
+- Mật khẩu tài khoản lưu dưới dạng PBKDF2-HMAC-SHA256 với salt riêng. Google API key nhập
+  qua Cài đặt được lưu trong trạng thái và ưu tiên hơn key cấu hình môi trường.
+- Với local: sao lưu `store.json` và cả thư mục `finance-photos/` (chứa cả object branding).
+  Với PostgreSQL/S3: sao lưu database và toàn bộ object tương ứng trong bucket; giữ cấu hình
+  kết nối an toàn. Không coi import CRM là thay thế cho backup/restore toàn bộ hệ thống.
+- Không commit `data/` hoặc bản sao lưu chứa thông tin khách hàng, hash mật khẩu hay API key.
 
 ## Bảo mật
 
@@ -202,7 +296,7 @@ Trước khi triển khai công khai:
 4. Bảo vệ thư mục `data/` và sao lưu thường xuyên. Tệp chứa hash mật khẩu và API key.
 5. Cân nhắc thêm rate limit cho `/api/auth/login` ở reverse proxy. Ứng dụng chỉ có độ trễ 320 ms cho mỗi lần nhập sai, không có khoá tài khoản.
 6. Liên kết album là bearer token: ai có liên kết đều xem được album. Dùng **Đổi liên kết chia sẻ** khi cần thu hồi quyền truy cập.
-7. Phiên đăng nhập lưu trong bộ nhớ; khởi động lại máy chủ sẽ đăng xuất tất cả phiên.
+7. Phiên có thời hạn 14 ngày, lưu trong RAM; restart đăng xuất tất cả. Đổi/reset mật khẩu hiện chưa thu hồi toàn bộ phiên cũ. Cookie dùng `HttpOnly`, `SameSite=Lax`; `Secure` phụ thuộc request HTTPS. Cần kiểm tra forwarded headers thực tế sau reverse proxy.
 8. Trang Cài đặt và các API quản lý tài khoản chỉ cho vai trò quản trị viên. Tài khoản bị tạm khoá mất hiệu lực ngay cả khi đang có phiên.
 
 ## Triển khai
@@ -217,12 +311,12 @@ Chạy bản publish:
 $env:ASPNETCORE_ENVIRONMENT = "Production"
 $env:AdminCode = "ma-rieng-cua-ban"
 $env:GoogleDrive__ApiKey = "AIza..."
-dotnet .\publish\MayAlbum.dll
+dotnet .\publish\StudioCore.dll
 ```
 
 Nên đặt ứng dụng sau reverse proxy có HTTPS và giữ nguyên thư mục `data/` khi nâng cấp.
 
-`AdminCode` chỉ dùng một lần để tạo tài khoản `admin` đầu tiên khi `data/store.json` chưa có người dùng. Khi đã có tài khoản, biến này không còn tác dụng; muốn đổi mật khẩu quản trị, hãy đặt lại trong **Cài đặt studio → Tài khoản studio**.
+`AdminCode` vẫn được luồng đăng nhập legacy sử dụng; xem mục Cấu hình. Docker dùng .NET 8 và cổng 10000. `render.yaml` cấu hình Docker web service, PostgreSQL, S3 và health check `/api/health`, với auto deploy theo commit. README này không xác nhận trạng thái production thực tế.
 
 ## Cấu trúc dự án
 
@@ -232,11 +326,14 @@ Models/              model dữ liệu, DTO, session store
 Services/            JSON store, Google Drive, dữ liệu mẫu, tiện ích
 wwwroot/
   assets/css/        styles.css, admin.css, album.css
-  assets/js/         app.js (router), admin.js, board.js, tools.js, album.js, api.js, ui.js
+  assets/js/         app.js (router), admin.js, crm.js, sales.js, operations.js,
+                     board.js, tools.js, album.js, api.js, ui.js
   assets/img/demo/   ảnh mẫu và thumbnail
   assets/fonts/      font self-hosted
   index.html         điểm vào của SPA
-data/store.json      dữ liệu studio (tự tạo)
+tests/               xUnit, runner API dữ liệu tạm, smoke API/S3 và test trình duyệt
+.github/workflows/   CI backend (build, test, smoke và publish)
+data/store.json      dữ liệu studio local (tự tạo khi không dùng PostgreSQL)
 Program.cs           cấu hình ASP.NET Core, CSP, static files, fallback
 ```
 
@@ -250,4 +347,28 @@ Frontend là HTML/CSS/ES module thuần, không cần Node.js hay bước build.
 - Kết quả lọc ảnh chỉ được ghi vào thư mục do người dùng chọn trên máy, không đồng bộ ngược lên album.
 - Drive API key chỉ đọc được thư mục công khai, không hỗ trợ thư mục riêng tư hoặc tài khoản Drive được uỷ quyền.
 - Bố cục gallery dùng CSS multi-column nên thứ tự hiển thị theo cột; thứ tự này có thể khác thứ tự đọc từng hàng.
-- Dữ liệu JSON phù hợp với một studio và số lượng album vừa phải; nếu mở rộng nhiều studio/nhiều người dùng đồng thời, nên chuyển sang cơ sở dữ liệu thật.
+- Cả JSON local và PostgreSQL JSONB hiện phù hợp triển khai một studio/một instance. Mở rộng nhiều instance cần xử lý đồng bộ ghi; thêm PostgreSQL hiện tại chưa tự giải quyết vấn đề này.
+
+## Build, test và CI
+
+```bash
+dotnet restore tests/StudioCore.Tests/StudioCore.Tests.csproj
+dotnet build tests/StudioCore.Tests/StudioCore.Tests.csproj -c Release --no-restore
+dotnet test tests/StudioCore.Tests/StudioCore.Tests.csproj -c Release --no-build
+python3 tests/run_backend.py
+dotnet publish StudioCore.csproj -c Release --no-restore -o publish
+```
+
+GitHub Actions tại `.github/workflows/backend.yml` chạy các bước trên khi push, pull request
+hoặc chạy thủ công; không deploy. Unit test dùng xUnit, API smoke dùng thư viện chuẩn Python,
+S3 dùng server giả lập local; không cần PostgreSQL, Google Drive hay credentials bên ngoài.
+Xem [tests/README.md](tests/README.md) để biết phạm vi và cách chạy test trình duyệt riêng.
+
+## Tên dự án StudioCore
+
+Project/assembly/namespace hiện dùng `StudioCore`; project test dùng `StudioCore.Tests`.
+Tên mặc định cho dữ liệu mới và fallback giao diện là StudioCore. Tên/logo đã lưu trong
+database vẫn ưu tiên hiển thị; đổi tên dự án không ghi đè thông tin studio hiện có.
+Tên service/database trong `render.yaml`, tên repository GitHub, URL Render và cookie/session
+được giữ nguyên để không tạo lại tài nguyên hoặc thay đổi cấu hình đang triển khai. Dockerfile
+đã trỏ đến `StudioCore.csproj` và `StudioCore.dll`.
