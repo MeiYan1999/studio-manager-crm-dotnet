@@ -346,10 +346,22 @@ function landingView() {
       </div>
 
       <main>
-        <section class="landing-hero">
+        <section class="landing-hero" aria-labelledby="landing-title">
+          <figure class="landing-hero__visual">
+            <img class="landing-hero__image" src="/assets/img/demo/12.jpg"
+                 alt="Cặp đôi tựa vai bên hồ trong ánh hoàng hôn" width="1600" height="1067"
+                 fetchpriority="high" decoding="async">
+            <figcaption class="landing-hero__caption">
+              <div>
+                <span class="landing-hero__studio">${escapeHtml(websiteSettings.studioName || 'StudioCore')}</span>
+                <span class="landing-hero__moment">Lưu giữ những điều thương mến.</span>
+              </div>
+              <a class="landing-hero__explore" href="#album-mau">Khám phá album ${icon('arrowDown')}</a>
+            </figcaption>
+          </figure>
           <div class="landing-hero__copy">
-            <p class="eyebrow"><span class="eyebrow__dot"></span>Album ảnh riêng tư</p>
-            <h1>${!content.heroTitle || content.heroTitle === 'Mỗi khoảnh khắc, một lời nhớ.' ? 'Mỗi khoảnh khắc,<br>một <em>lời nhớ.</em>' : text('heroTitle', '')}</h1>
+            <p class="eyebrow"><span class="eyebrow__dot"></span>Những câu chuyện qua từng khung hình</p>
+            <h1 id="landing-title">${!content.heroTitle || content.heroTitle === 'Mỗi khoảnh khắc, một lời nhớ.' ? 'Mỗi khoảnh khắc, một <em>lời nhớ.</em>' : text('heroTitle', '')}</h1>
             <p class="landing-hero__lead">
               ${text('heroDescription', 'StudioCore gom những ngày đẹp nhất vào một album riêng. Bạn chỉ cần mở liên kết, thả tim những tấm ảnh mình yêu và gửi lại cho studio.')}
             </p>
@@ -357,31 +369,6 @@ function landingView() {
               <a class="btn btn--primary btn--lg" href="/a/demo-ngay-chung-doi">Mở album mẫu ${icon('arrowRight')}</a>
               <a class="btn btn--text btn--lg" href="#cach-hoat-dong">Tìm hiểu cách hoạt động ${icon('arrowUpRight')}</a>
             </div>
-            <div class="landing-proof">
-              <div class="avatar-stack" aria-hidden="true">
-                <span class="avatar avatar--rose">L</span>
-                <span class="avatar avatar--olive">M</span>
-                <span class="avatar avatar--sand">H</span>
-              </div>
-              <p>Những album được trao đi<br><strong>bằng cả sự dịu dàng.</strong></p>
-            </div>
-          </div>
-          <div class="landing-collage" aria-label="Ảnh cưới từ album mẫu">
-            <div class="landing-collage__sun" aria-hidden="true"></div>
-            <figure class="collage-photo collage-photo--main">
-              <img src="/assets/img/demo/thumbs/07.jpg" alt="Khoảnh khắc bên biển trong album mẫu" fetchpriority="high">
-            </figure>
-            <figure class="collage-photo collage-photo--top">
-              <img src="/assets/img/demo/thumbs/16.jpg" alt="Ảnh cưới trong vườn" loading="lazy">
-            </figure>
-            <figure class="collage-photo collage-photo--bottom">
-              <img src="/assets/img/demo/thumbs/06.jpg" alt="Ảnh cưới giữa nắng sớm" loading="lazy">
-            </figure>
-            <div class="collage-note">
-              <span class="collage-note__icon">${icon('heart')}</span>
-              <div><strong>4 khoảnh khắc</strong><span>vừa được chọn</span></div>
-            </div>
-            <p class="collage-caption">Đà Lạt · 09.2026</p>
           </div>
         </section>
 
