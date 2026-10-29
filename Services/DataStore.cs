@@ -216,19 +216,59 @@ public sealed class DataStore
             return value;
         }
 
-        var uri = new Uri(value);
-        var separator = uri.UserInfo.IndexOf(':');
-        var username = separator >= 0 ? uri.UserInfo[..separator] : uri.UserInfo;
-        var password = separator >= 0 ? uri.UserInfo[(separator + 1)..] : "";
+        // Parse from the right-most @ so raw passwords containing @, # or other
+        // URI-reserved characters still work when pasted from a provider UI.
+        var schemeEnd = value.IndexOf("://", StringComparison.Ordinal) + 3;
+        var payload = value[schemeEnd..];
+        var at = payload.LastIndexOf('@');
+        var slash = at >= 0 ? payload.IndexOf('/', at + 1) : -1;
+        if (at <= 0 || slash <= at + 1)
+        {
+            throw new InvalidOperationException(
+                "Chuỗi PostgreSQL không hợp lệ. Hãy sao chép Session pooler URI đầy đủ từ Supabase.");
+        }
+
+        var credentials = payload[..at];
+        var authority = payload[(at + 1)..slash];
+        var database = payload[(slash + 1)..].Split('?', 2)[0];
+        var credentialSeparator = credentials.IndexOf(':');
+        var hostSeparator = authority.LastIndexOf(':');
+        if (credentialSeparator <= 0 || hostSeparator <= 0 ||
+            !int.TryParse(authority[(hostSeparator + 1)..], out var port))
+        {
+            throw new InvalidOperationException(
+                "Chuỗi PostgreSQL không hợp lệ. Hãy dùng Session pooler URI có dạng postgresql://user:password@host:5432/postgres.");
+        }
+
+        var username = credentials[..credentialSeparator];
+        var password = credentials[(credentialSeparator + 1)..];
+        if (password.Contains("[YOUR-PASSWORD]", StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidOperationException(
+                "Chuỗi PostgreSQL vẫn còn [YOUR-PASSWORD]. Hãy thay bằng mật khẩu database Supabase.");
+        }
+
         return new NpgsqlConnectionStringBuilder
         {
-            Host = uri.Host,
-            Port = uri.IsDefaultPort ? 5432 : uri.Port,
-            Database = uri.AbsolutePath.TrimStart('/'),
+            Host = authority[..hostSeparator],
+            Port = port,
+            Database = DecodeConnectionPart(database),
             Username = Uri.UnescapeDataString(username),
-            Password = Uri.UnescapeDataString(password),
+            Password = DecodeConnectionPart(password),
             SslMode = SslMode.Prefer
         }.ConnectionString;
+    }
+
+    private static string DecodeConnectionPart(string value)
+    {
+        try
+        {
+            return Uri.UnescapeDataString(value);
+        }
+        catch (UriFormatException)
+        {
+            return value;
+        }
     }
 
     private static bool Migrate(AppData data, string adminCode)
