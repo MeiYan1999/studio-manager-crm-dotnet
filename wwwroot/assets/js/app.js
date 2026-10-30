@@ -28,7 +28,7 @@ import {
 import { ordersView, contractsView, reportsView } from './sales.js';
 import { financeView, attendanceView, shiftsView, wardrobeView, notificationsView } from './operations.js';
 import { boardView } from './board.js';
-import { photoFilterView } from './tools.js';
+import { photoFilterView } from './tools.js?v=20261030-photo-copy';
 import { publicAlbumView, notFoundAlbumView } from './album.js';
 
 const APP_TITLE = 'StudioCore';

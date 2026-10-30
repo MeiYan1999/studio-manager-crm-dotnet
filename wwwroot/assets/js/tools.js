@@ -1,3 +1,4 @@
+import { copyPhotoFile, describePhotoCopyError } from './photo-copy.js';
 import { api } from './api.js';
 import {
   icon,
@@ -172,8 +173,8 @@ export function sanitizeFolderName(value) {
 }
 
 function uniqueFileName(fileName, usedNames) {
-  if (!usedNames.has(fileName)) {
-    usedNames.add(fileName);
+  if (!usedNames.has(fileName.toLowerCase())) {
+    usedNames.add(fileName.toLowerCase());
     return fileName;
   }
 
@@ -182,11 +183,11 @@ function uniqueFileName(fileName, usedNames) {
   const base = match ? fileName.slice(0, match.index) : fileName;
   let counter = 2;
   let candidate = `${base}-${counter}${extension ? `.${extension}` : ''}`;
-  while (usedNames.has(candidate)) {
+  while (usedNames.has(candidate.toLowerCase())) {
     counter++;
     candidate = `${base}-${counter}${extension ? `.${extension}` : ''}`;
   }
-  usedNames.add(candidate);
+  usedNames.add(candidate.toLowerCase());
   return candidate;
 }
 
@@ -741,7 +742,7 @@ export function photoFilterView({ session }) {
         progressDetail.textContent = `Đã khớp ${number(matched)} ảnh · đã sao chép ${number(copied)} ảnh.`;
       };
 
-      const renderResult = ({ scanned, matched, copied, errors, outputLabel, stopped = false }) => {
+      const renderResult = ({ scanned, matched, copied, errors, errorDetails, outputLabel, stopped = false }) => {
         if (!copied && !matched) {
           resultRoot.innerHTML = `
             <div class="filter-result filter-result--empty">
@@ -779,7 +780,7 @@ export function photoFilterView({ session }) {
                 ${copied > names.length ? `<li class="filter-result__more">+ ${number(copied - names.length)} ảnh khác</li>` : ''}
               </ul>
             ` : ''}
-            ${errors ? `<p class="filter-result__error">${icon('alertCircle')} Một số tệp không sao chép được. Hãy kiểm tra quyền ghi hoặc dung lượng ổ đĩa rồi thử lại.</p>` : ''}
+            ${errors ? `<div class="filter-result__error">${icon('alertCircle')} <span>Một số tệp không sao chép được. ${errorDetails.map(item => `<br>${escapeHtml(item)}`).join('')}${errors > errorDetails.length ? `<br>Và ${number(errors - errorDetails.length)} tệp khác.` : ''}</span></div>` : ''}
             ${copied ? `
               <div class="filter-result__actions">
                 <button class="btn btn--ghost btn--compact" type="button" data-copy-filtered-names>${icon('copy')} Sao chép tên ảnh đã lọc</button>
@@ -864,6 +865,7 @@ export function photoFilterView({ session }) {
         let matched = 0;
         let copied = 0;
         let errors = 0;
+        const errorDetails = [];
         let outputLabel = '';
         let stopped = false;
         const usedNames = new Set();
@@ -871,9 +873,9 @@ export function photoFilterView({ session }) {
         const matcher = createCodeMatcher(codes, matchMode);
 
         try {
-          const sourcePermission = await ensurePermission(sourceHandle, 'readwrite');
+          const sourcePermission = await ensurePermission(sourceHandle, createSubfolder.checked ? 'readwrite' : 'read');
           if (!sourcePermission) {
-            throw new Error('Bạn chưa cấp quyền đọc và ghi cho thư mục ảnh gốc.');
+            throw new Error(createSubfolder.checked ? 'Bạn chưa cấp quyền đọc và ghi cho thư mục ảnh gốc.' : 'Bạn chưa cấp quyền đọc thư mục ảnh gốc.');
           }
 
           let outputDirectory;
@@ -897,10 +899,10 @@ export function photoFilterView({ session }) {
           // instead of overwriting what is already in the destination folder.
           try {
             for await (const entry of outputDirectory.values()) {
-              usedNames.add(entry.name);
+              usedNames.add(entry.name.toLowerCase());
             }
           } catch {
-            // Listing is a safety net; in-run duplicate protection still applies.
+            throw new Error('Không đọc được danh sách thư mục đích để tránh ghi đè. Hãy chọn lại thư mục và thử lại.');
           }
 
           const scanOptions = {
@@ -926,26 +928,23 @@ export function photoFilterView({ session }) {
             matched++;
 
             try {
-              const file = await entry.handle.getFile();
               const targetName = uniqueFileName(entry.handle.name, usedNames);
-              const targetHandle = await outputDirectory.getFileHandle(targetName, { create: true });
-              const writable = await targetHandle.createWritable();
-              await writable.write(file);
-              await writable.close();
+              await copyPhotoFile(entry.handle, outputDirectory, targetName);
               copied++;
               lastCopiedNames.push(targetName);
-            } catch {
+            } catch (error) {
               errors++;
+              if (errorDetails.length < 3) errorDetails.push(`${entry.handle.name} — ${describePhotoCopyError(error)}`);
             }
           }
 
           setProgress(scanned, matched, copied);
-          renderResult({ scanned, matched, copied, errors, outputLabel, stopped });
+          renderResult({ scanned, matched, copied, errors, errorDetails, outputLabel, stopped });
 
           if (copied) {
             showToast(`Đã lọc xong ${number(copied)} ảnh vào “${outputLabel}”.`, 'success');
           } else if (matched) {
-            showToast('Tìm thấy ảnh khớp nhưng chưa sao chép được. Hãy kiểm tra quyền ghi.', 'error');
+            showToast('Tìm thấy ảnh khớp nhưng chưa sao chép được. Xem chi tiết lỗi bên dưới.', 'error');
           } else {
             showToast('Không tìm thấy ảnh nào khớp với danh sách mã.', 'info');
           }

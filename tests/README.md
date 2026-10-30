@@ -83,3 +83,5 @@ Bài kiểm thử đổi và khôi phục cài đặt: logo, tên studio, lời 
 kiểm tra độ dài/tên trống và bố cục điện thoại.
 
 - `prices_smoke.py`: kiểm tra bảng giá mặc định, quyền sửa, ẩn/hiện và tính độc lập với gói đặt lịch.
+
+- `node --test tests/photo_copy_test.mjs`: kiểm tra sao chép theo khối, tệp rỗng, báo lỗi theo bước và hủy ghi khi thất bại.
