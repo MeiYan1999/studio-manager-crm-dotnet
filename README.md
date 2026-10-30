@@ -431,4 +431,4 @@ StudioCore không ghi đè tên studio đã lưu trong database.
 
 ### Bảng giá trên website
 
-Trang chủ có bảng giá năm nhóm từ nội dung mẫu. Vào **Gói Chụp → Bảng giá trên website**, chọn **Thêm nhóm**, **Thêm gói chụp**, hoặc mở nhóm và chọn **Sửa** để đổi tên, mô tả, giá, quyền lợi hoặc ẩn gói. Bảng giá website lưu riêng với gói dùng trong lịch chụp; sửa bảng giá không tự đổi giá lịch hay đơn hàng.
+Trang chủ có bảng giá năm nhóm từ nội dung mẫu. Vào **Gói Chụp → Bảng giá trên website**, chọn **Thêm nhóm**, **Thêm gói chụp**, hoặc mở nhóm để sửa/xóa nhóm và sửa/xóa gói. Xóa nhóm sẽ xóa các gói trong nhóm sau khi xác nhận. Bảng giá website lưu riêng với gói dùng trong lịch chụp; sửa bảng giá không tự đổi giá lịch hay đơn hàng.

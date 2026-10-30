@@ -40,6 +40,21 @@ def run():
     assert visible_group['items'][0]['id'] == created['id']
     assert visible_group['items'][0]['benefits'] == 'Ảnh\nTrang phục'
     req(admin, '/api/admin/price-catalog/missing/items', {'name':'Gói', 'visible':True}, 'POST', 404)
+    group_path = '/api/admin/price-catalog/groups/' + group['id']
+    req(guest, group_path, {'title':'Denied'}, 'PUT', 401)
+    req(guest, group_path + '?expectedCount=1', method='DELETE', status=401)
+    updated = req(admin, group_path, {'title':'Nhóm đã sửa', 'description':'Mô tả mới'}, 'PUT')
+    assert updated['title'] == 'Nhóm đã sửa' and len(updated['items']) == 1
+    req(admin, group_path + '?expectedCount=0', method='DELETE', status=409)
+    assert any(g['id'] == group['id'] for g in req(guest, '/api/public/prices'))
+    edit_path = '/api/admin/price-catalog/' + group['id'] + '/' + created['id']
+    req(guest, edit_path, method='DELETE', status=401)
+    req(admin, edit_path, method='DELETE', status=204)
+    assert not next(g for g in req(guest, '/api/public/prices') if g['id'] == group['id'])['items']
+    second = req(admin, item_path, {'name':'Gói ẩn', 'visible':False}, 'POST', 201)
+    req(admin, group_path + '?expectedCount=1', method='DELETE', status=204)
+    assert all(g['id'] != group['id'] for g in req(guest, '/api/public/prices'))
+    req(admin, edit_path, method='DELETE', status=404)
     assert req(admin, '/api/admin/packages') == packages_before
     item['name'] = ''
     req(admin, path, item, 'PUT', 400)

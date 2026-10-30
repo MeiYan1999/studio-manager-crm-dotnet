@@ -89,6 +89,45 @@ public static class CrmEndpoints
             });
             return Results.Created($"/api/admin/price-catalog/{groupItem.Id}", groupItem);
         }).AddEndpointFilter(packages);
+        group.MapPut("/price-catalog/groups/{groupId}", (string groupId, PriceGroup request, HttpContext context, DataStore store, AdminSessionStore sessions) =>
+        {
+            if (string.IsNullOrWhiteSpace(request.Title) || request.Title.Length > 120 || (request.Description?.Length ?? 0) > 500)
+                throw new ApiException(400, "Tên nhóm hoặc mô tả chưa hợp lệ.", "invalid_price_group");
+            var actor = sessions.RequireUser(context);
+            return Results.Ok(store.Write(data => {
+                var found = data.PriceCatalog.FirstOrDefault(g => g.Id == groupId)
+                    ?? throw new ApiException(404, "Không tìm thấy nhóm bảng giá.", "price_group_not_found");
+                found.Title = request.Title.Trim(); found.Description = (request.Description ?? "").Trim();
+                StudioAudit.Add(data, actor, "packages", "update", $"đã cập nhật nhóm bảng giá “{found.Title}”", found.Id, []);
+                return found;
+            }));
+        }).AddEndpointFilter(packages);
+        group.MapDelete("/price-catalog/groups/{groupId}", (string groupId, int expectedCount, HttpContext context, DataStore store, AdminSessionStore sessions) =>
+        {
+            var actor = sessions.RequireUser(context);
+            store.Write(data => {
+                var found = data.PriceCatalog.FirstOrDefault(g => g.Id == groupId)
+                    ?? throw new ApiException(404, "Không tìm thấy nhóm bảng giá.", "price_group_not_found");
+                if (found.Items.Count != expectedCount)
+                    throw new ApiException(409, "Số gói trong nhóm đã thay đổi. Hãy tải lại và kiểm tra trước khi xóa.", "price_group_changed");
+                data.PriceCatalog.Remove(found);
+                StudioAudit.Add(data, actor, "packages", "delete", $"đã xóa nhóm bảng giá “{found.Title}”", found.Id, [$"{expectedCount} gói"]);
+            });
+            return Results.NoContent();
+        }).AddEndpointFilter(packages);
+        group.MapDelete("/price-catalog/{groupId}/{itemId}", (string groupId, string itemId, HttpContext context, DataStore store, AdminSessionStore sessions) =>
+        {
+            var actor = sessions.RequireUser(context);
+            store.Write(data => {
+                var parent = data.PriceCatalog.FirstOrDefault(g => g.Id == groupId)
+                    ?? throw new ApiException(404, "Không tìm thấy nhóm bảng giá.", "price_group_not_found");
+                var found = parent.Items.FirstOrDefault(i => i.Id == itemId)
+                    ?? throw new ApiException(404, "Không tìm thấy gói trong bảng giá.", "price_item_not_found");
+                parent.Items.Remove(found);
+                StudioAudit.Add(data, actor, "packages", "delete", $"đã xóa gói bảng giá “{found.Name}”", found.Id, []);
+            });
+            return Results.NoContent();
+        }).AddEndpointFilter(packages);
         group.MapPost("/price-catalog/{groupId}/items", (string groupId, PriceItem request, HttpContext context, DataStore store, AdminSessionStore sessions) =>
         {
             if (string.IsNullOrWhiteSpace(request.Name) || request.Name.Length > 120 || (request.Subtitle?.Length ?? 0) > 500 || (request.PriceText?.Length ?? 0) > 500 || (request.Benefits?.Length ?? 0) > 4000)
