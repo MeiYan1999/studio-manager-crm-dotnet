@@ -14,6 +14,13 @@ export function platformView() {
         plans.forEach((plan, index) => { const price = cards[index]?.querySelector('strong'); if (price) price.innerHTML = `${new Intl.NumberFormat('vi-VN').format(plan.monthlyPrice)} đ${plan.monthlyPrice ? ' <small>/ tháng</small>' : ''}`; });
       }).catch(() => { root.querySelectorAll('.platform-plans strong').forEach(price => { price.textContent = 'Liên hệ để biết giá'; }); });
       const form = root.querySelector('[data-registration]');
+      api('/api/onboarding/status').then(status => {
+        if (status.registrationEnabled) return;
+        form.querySelectorAll('input,button').forEach(control => { control.disabled = true; });
+        const message = form.querySelector('[data-registration-message]');
+        message.textContent = status.message || 'Đăng ký mới đang tạm đóng.';
+        form.querySelector('button').textContent = 'Đăng ký đang tạm đóng';
+      }).catch(() => {});
       form.addEventListener('submit', async event => {
         event.preventDefault();
         const button = form.querySelector('button');

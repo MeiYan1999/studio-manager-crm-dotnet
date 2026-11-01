@@ -26,6 +26,8 @@ def run():
             return json.loads(raw) if raw else None
 
     master, studio, anonymous = client(), client(), client()
+    assert request(anonymous, '/api/onboarding/status')['registrationEnabled'] is True
+    request(anonymous, '/s/studio-b/api/onboarding/status', expected=404)
     registration = {'studioName': 'Studio mới', 'slug': 'studio-moi', 'username': 'owner', 'email': 'owner@example.test', 'password': 'test-registration-password'}
     created = request(anonymous, '/api/onboarding/register', registration, expected=201)
     assert created['loginUrl'] == '/s/studio-moi/admin/login'

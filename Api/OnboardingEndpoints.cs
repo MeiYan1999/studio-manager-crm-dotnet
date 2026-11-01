@@ -9,6 +9,19 @@ public static class OnboardingEndpoints
 {
     public static void Map(WebApplication app)
     {
+        app.MapGet("/api/onboarding/status", (HttpContext context, AccountEmailSender emailSender) =>
+        {
+            if (!context.Items.ContainsKey("StudioCore.PlatformHost"))
+                throw new ApiException(404, "Không tìm thấy trạng thái đăng ký.", "not_found");
+            return Results.Ok(new
+            {
+                RegistrationEnabled = emailSender.IsConfigured,
+                Message = emailSender.IsConfigured
+                    ? "Có thể tạo studio mới."
+                    : "StudioCore đang hoàn thiện cấu hình email trước khi nhận đăng ký mới."
+            });
+        });
+
         app.MapPost("/api/onboarding/register", async (RegistrationRequest request, HttpContext context, StudioProvisioning provisioning, AccountEmailSender emailSender) =>
         {
             if (!context.Items.ContainsKey("StudioCore.PlatformHost"))
