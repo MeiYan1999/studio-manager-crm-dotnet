@@ -1,9 +1,11 @@
 using System.IO.Compression;
 using System.Text.Json;
 using StudioCore.Api;
+using StudioCore.Persistence;
 using StudioCore.Models;
 using StudioCore.Services;
 using Microsoft.AspNetCore.ResponseCompression;
+using System.Threading.RateLimiting;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -13,10 +15,30 @@ builder.Services.ConfigureHttpJsonOptions(options =>
     options.SerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
 });
 
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    options.AddPolicy("onboarding", context =>
+        RateLimitPartition.GetFixedWindowLimiter(context.Connection.RemoteIpAddress?.ToString() ?? "unknown", _ =>
+            new FixedWindowRateLimiterOptions { PermitLimit = 5, Window = TimeSpan.FromMinutes(10), QueueLimit = 0 }));
+    options.AddPolicy("account-lifecycle", context =>
+        RateLimitPartition.GetFixedWindowLimiter(context.Connection.RemoteIpAddress?.ToString() ?? "unknown", _ =>
+            new FixedWindowRateLimiterOptions { PermitLimit = 12, Window = TimeSpan.FromMinutes(10), QueueLimit = 0 }));
+});
+builder.Services.AddSingleton<TenantContext>();
+builder.Services.AddSingleton<SaasDatabase>();
+builder.Services.AddSingleton<StudioProvisioning>();
+builder.Services.AddSingleton<AccountEmailSender>();
+builder.Services.AddSingleton<BillingEvents>();
+builder.Services.AddSingleton<SubscriptionBilling>();
+builder.Services.AddSingleton<ISubscriptionGuard, SubscriptionGuard>();
+builder.Services.AddHostedService<SubscriptionMaintenance>();
 builder.Services.AddSingleton<DataStore>();
 builder.Services.AddSingleton<IObjectStorage, ObjectStorage>();
 builder.Services.AddSingleton<AdminSessionStore>();
 builder.Services.AddSingleton<GoogleDriveService>();
+builder.Services.AddHttpClient("dns", client => { client.Timeout = TimeSpan.FromSeconds(12); client.DefaultRequestHeaders.Accept.ParseAdd("application/dns-json"); });
 builder.Services.AddHttpClient("drive", client =>
 {
     client.Timeout = TimeSpan.FromSeconds(50);
@@ -51,7 +73,7 @@ app.Use(async (context, next) =>
     context.Response.Headers.Append(
         "Content-Security-Policy",
         "default-src 'self'; " +
-        "img-src 'self' data: blob: https://drive.google.com https://*.googleusercontent.com; " +
+        "img-src 'self' data: blob: https://drive.google.com https://*.googleusercontent.com https://qr.sepay.vn; " +
         "style-src 'self' 'unsafe-inline'; " +
         "script-src 'self'; " +
         "font-src 'self'; " +
@@ -85,8 +107,18 @@ app.Use(async (context, next) =>
         context.Response.StatusCode = exception.StatusCode;
         context.Response.ContentType = "application/json; charset=utf-8";
         await context.Response.WriteAsJsonAsync(
-            new ApiErrorDto(exception.Message, exception.Code),
+            new ApiErrorDto(exception.Message, exception.Code, exception.Feature, exception.RequiredPlan),
             context.RequestAborted);
+    }
+    catch (Microsoft.EntityFrameworkCore.DbUpdateConcurrencyException) when (!context.Response.HasStarted)
+    {
+        context.Response.StatusCode = 409;
+        await context.Response.WriteAsJsonAsync(new ApiErrorDto("Dữ liệu vừa được thay đổi. Vui lòng tải lại và thử lại.", "concurrent_update"));
+    }
+    catch (Microsoft.EntityFrameworkCore.DbUpdateException) when (!context.Response.HasStarted)
+    {
+        context.Response.StatusCode = 409;
+        await context.Response.WriteAsJsonAsync(new ApiErrorDto("Dữ liệu trùng mã hoặc không hợp lệ. Vui lòng kiểm tra và thử lại.", "data_conflict"));
     }
     catch (Exception exception) when (!context.Response.HasStarted)
     {
@@ -98,6 +130,19 @@ app.Use(async (context, next) =>
             new ApiErrorDto("Có lỗi xảy ra phía máy chủ. Vui lòng thử lại.", "server_error"),
             context.RequestAborted);
     }
+});
+
+app.UseMiddleware<TenantResolverMiddleware>();
+app.UseRouting();
+app.UseRateLimiter();
+app.Use(async (context, next) =>
+{
+    if (context.Request.Path.StartsWithSegments("/api") && context.Request.Path != "/api/payments/sepay-webhook" &&
+        !HttpMethods.IsGet(context.Request.Method) && !HttpMethods.IsHead(context.Request.Method) &&
+        context.Request.Headers.TryGetValue("Origin", out var origin) &&
+        (!Uri.TryCreate(origin.ToString(), UriKind.Absolute, out var uri) || !string.Equals(uri.Authority, context.Request.Host.Value, StringComparison.OrdinalIgnoreCase)))
+        throw new ApiException(403, "Nguồn yêu cầu không hợp lệ.", "invalid_origin");
+    await next(context);
 });
 
 async Task ServeAppShell(HttpContext context)
@@ -144,6 +189,9 @@ app.UseStaticFiles(new StaticFileOptions
     }
 });
 
+InvitationEndpoints.Map(app);
+OnboardingEndpoints.Map(app);
+SaasEndpoints.Map(app);
 AuthEndpoints.Map(app);
 PublicEndpoints.Map(app);
 AdminEndpoints.Map(app);
@@ -178,6 +226,17 @@ app.MapFallback(async context =>
 });
 
 var store = app.Services.GetRequiredService<DataStore>();
+store.InitializeSaas();
+if (args.Contains("--create-studio"))
+{
+    var provisioned = app.Services.GetRequiredService<StudioProvisioning>().Create(
+        builder.Configuration["Provisioning:Name"] ?? "", builder.Configuration["Provisioning:Slug"] ?? "",
+        builder.Configuration["Provisioning:Username"] ?? "", builder.Configuration["Provisioning:Password"] ?? "",
+        builder.Configuration["Provisioning:Email"] ?? "");
+    var studio = provisioned.Studio;
+    app.Logger.LogInformation("Studio created: {Code}, /s/{Slug}, plan Free", studio.StudioCode, studio.Slug);
+    return;
+}
 app.Logger.LogInformation("Dữ liệu studio: {Path}", store.StorePath);
 if (store.AdminCode == "studio2026")
 {

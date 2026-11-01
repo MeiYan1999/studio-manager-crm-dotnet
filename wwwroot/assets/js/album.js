@@ -175,6 +175,7 @@ function albumPage(album) {
               ${album.location ? `<span>${icon('mapPin')} ${escapeHtml(album.location)}</span>` : ''}
               <span>${icon('image')} ${pluralPhotos(photos.length)}</span>
             </div>
+            ${album.greeting ? `<p class="album-hero__description">${escapeHtml(album.greeting)}</p>` : ''}
             ${album.description ? `<p class="album-hero__description">${escapeHtml(album.description)}</p>` : ''}
             <div class="album-hero__actions">
               ${hasSelection ? `

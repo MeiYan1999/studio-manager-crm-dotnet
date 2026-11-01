@@ -89,9 +89,9 @@ def main():
             args.port = probe.getsockname()[1]
         except OSError as error:
             raise RuntimeError('Không mở được cổng local (' + str(error) + '). Thử --port 0 để tự chọn cổng trống.') from None
-    prefixes = ('connectionstrings__', 'storage__', 'data__', 'googledrive__', 'aspnetcore_', 'dotnet_', 'crm_test_')
+    prefixes = ('connectionstrings__', 'storage__', 'data__', 'googledrive__', 'aspnetcore_', 'dotnet_', 'crm_test_', 'saas__', 'billing__', 'sepay__', 'email__', 'provisioning__')
     env = {key: value for key, value in os.environ.items()
-           if not key.lower().startswith(prefixes) and key.lower() not in ('database_url', 'admincode')}
+           if not key.lower().startswith(prefixes) and key.lower() not in ('database_url', 'admincode', 'render_external_hostname')}
     # Always build the current source, so the preview cannot silently show an older binary.
     subprocess.run([dotnet, 'build', 'StudioCore.csproj', '-c', 'Release', '--disable-build-servers'],
                    cwd=SOURCE, env=env, check=True)

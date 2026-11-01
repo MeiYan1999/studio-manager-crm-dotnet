@@ -72,8 +72,8 @@ def request(path, data=None, method=None, content_type='application/json'):
 
 with tempfile.TemporaryDirectory(prefix='crm-s3-test-') as folder:
     env = {key: value for key, value in os.environ.items()
-           if not key.lower().startswith(('connectionstrings__', 'storage__', 'data__', 'googledrive__', 'aspnetcore_', 'dotnet_'))
-           and key.lower() not in ('database_url', 'admincode')}
+           if not key.lower().startswith(('connectionstrings__', 'storage__', 'data__', 'googledrive__', 'aspnetcore_', 'dotnet_', 'saas__', 'billing__', 'sepay__', 'email__', 'provisioning__'))
+           and key.lower() not in ('database_url', 'admincode', 'render_external_hostname')}
     password = secrets.token_urlsafe(32)
     env.update(Data__Directory=folder, ASPNETCORE_URLS=base,
                AdminCode=password, ASPNETCORE_ENVIRONMENT='Production',

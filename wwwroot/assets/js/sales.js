@@ -1,4 +1,5 @@
-import { crmApi, salesApi } from './api.js';
+import { mountQuickLocations } from './quick-locations.js';
+import { api, crmApi, salesApi } from './api.js';
 import { mountAdminShell, pageHead, hasPermission } from './admin.js';
 import {
   icon,
@@ -1152,7 +1153,7 @@ export function contractsView({ session }) {
               </select>
             </div>
             <div class="field crm-form__full">
-              <label for="contract-terms">Điều khoản</label>
+              <label for="contract-location">Địa điểm chụp</label><input id="contract-location" name="location" maxlength="160" value="${escapeAttr(contract?.location||'')}"><label for="contract-terms">Điều khoản</label>
               <textarea id="contract-terms" name="terms" rows="6" maxlength="8000" placeholder="Để trống để studio tự sinh điều khoản mẫu.">${escapeHtml(contract?.terms || '')}</textarea>
             </div>
           </div>
@@ -1166,6 +1167,8 @@ export function contractsView({ session }) {
     `, { className: 'dialog--crm dialog--wide' });
 
     const form = modal.dialog.querySelector('[data-contract-form]');
+    mountQuickLocations(form, '[name=location]');
+    if (!isEdit) api('/api/saas/preferences').then(p => { const input=form.querySelector('[name=terms]'); if(form.isConnected && input && !input.value) input.value=p.contractTemplate||''; }).catch(()=>{});
     form.querySelector('[name="bookingId"]').addEventListener('change', event => {
       const booking = options.bookings.find(item => item.id === event.target.value);
       if (!booking) return;
@@ -1197,6 +1200,7 @@ export function contractsView({ session }) {
         customerId,
         bookingId: form.querySelector('[name="bookingId"]').value,
         service: form.querySelector('[name="service"]').value,
+        location: form.querySelector('[name="location"]').value,
         terms: form.querySelector('[name="terms"]').value,
         status: form.querySelector('[name="status"]').value
       };

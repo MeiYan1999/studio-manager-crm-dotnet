@@ -1,6 +1,8 @@
 # StudioCore
 
-StudioCore là ứng dụng quản lý một studio: album ảnh từ Google Drive và lựa chọn của khách hàng, CRM, lịch chụp, công việc, bán hàng, tài chính và vận hành. Backend là ASP.NET Core Minimal API (.NET 8); frontend dùng HTML/CSS/JavaScript ES modules thuần, không có bước build Node.js.
+StudioCore là nền tảng quản lý studio với dữ liệu tách theo tenant: album ảnh từ Google Drive và lựa chọn của khách hàng, CRM, lịch chụp, công việc, bán hàng, tài chính và vận hành. Backend là ASP.NET Core Minimal API (.NET 8); frontend dùng HTML/CSS/JavaScript ES modules thuần, không có bước build Node.js.
+
+Bản SaaS bổ sung EF Core, ba cách truy cập studio, quyền theo gói, quota lọc ảnh, VietQR/SePay và các tab Cài đặt. Xem [hướng dẫn SaaS](docs/SAAS-COMMERCIAL.md) về migration, biến môi trường, tạo studio và các tính năng dịch vụ chưa triển khai; không coi bảng quyền theo gói là xác nhận mọi tích hợp đã hoạt động.
 
 - Giao diện tiếng Việt, tông màu kem – mực – terracotta.
 - Tạo album từ thư mục Google Drive công khai (có thể đọc cả thư mục con).
@@ -9,21 +11,22 @@ StudioCore là ứng dụng quản lý một studio: album ảnh từ Google Dri
 - Studio xem lựa chọn, ghi chú, thời điểm gửi, xuất CSV và quản lý trạng thái chia sẻ.
 - Sao chép nhanh mã ảnh khách đã chọn và lọc đúng tệp RAW/JPG từ thư mục trên máy tính, xử lý hoàn toàn trong trình duyệt.
 - Bảng công việc kiểu Trello: kéo thả thẻ giữa các danh sách, nhãn màu, checklist, hạn chót và tùy chỉnh nền bảng.
-- Tài khoản riêng cho từng thành viên với hai vai trò quản trị viên/nhân viên; mỗi thẻ có nhật ký ghi lại người tạo, sửa hoặc kéo thẻ.
+- Tài khoản riêng với vai trò admin/manager/sale/employee và quyền theo phân hệ; mỗi thẻ có nhật ký ghi lại người tạo, sửa hoặc kéo thẻ.
 - Có sẵn hai album mẫu để thử ngay, không cần Google Drive.
 
 ## Kiến trúc và các phân hệ
 
 - `Api/`: Minimal API cho auth, album công khai, quản trị, CRM, bán hàng và vận hành.
 - `Models/`: dữ liệu, request/DTO, session trong RAM và endpoint filters kiểm tra quyền.
-- `Services/DataStore.cs`: singleton giữ trạng thái trong RAM, lưu JSON local hoặc một bản ghi JSONB trong PostgreSQL qua Npgsql 8.0.6; không dùng Entity Framework.
+- `Persistence/`: EF Core 8.0.22, SQLite local hoặc PostgreSQL qua Npgsql EF 8.0.11; các bảng nghiệp vụ có khóa ghép `TenantId/Id`, global query filters và kiểm tra tenant khi ghi. Danh sách con (ảnh, lựa chọn, dòng đơn hàng) giữ JSON để tương thích nghiệp vụ cũ.
+- `Services/DataStore.cs`: facade tương thích API cũ; runtime đọc/ghi qua `SaasDatabase` trong transaction. JSON/`app_state` cũ chỉ dùng để nhập dữ liệu lần đầu.
 - `wwwroot/assets/js/app.js`: router phía trình duyệt. `api.js` gọi API cùng origin; các module còn lại dựng giao diện theo phân hệ.
 - `ObjectStorage`: local hoặc S3 tương thích (ký AWS Signature V4); `GoogleDriveService`: Drive API v3 cho thư mục công khai.
 - CRM: khách hàng, gói dịch vụ, nhân sự, lịch chụp và nhật ký studio.
 - Bán hàng: đơn hàng, thanh toán, hóa đơn, hợp đồng, lịch thanh toán và báo cáo.
 - Vận hành: thu chi, chứng từ, bảng lương, chấm công, phân ca tuần, trang phục, concept và phiếu thuê/trả.
-- Quản trị: tài khoản admin/employee, quyền theo phân hệ, bắt buộc đổi mật khẩu, nội dung website, logo và ảnh đăng nhập.
-- Nhập backup CRM có xem trước (`DryRun`) và tùy chọn xử lý bản ghi hiện có. Thông báo nằm trong ứng dụng; quét quá hạn được kích hoạt khi gọi API thông báo, không có background scheduler.
+- Quản trị: tài khoản, quyền theo phân hệ, bắt buộc đổi mật khẩu, nội dung website, logo và ảnh đăng nhập; Settings thêm gói, domain, lời mời email, backup metadata và địa điểm nhanh.
+- Nhập backup CRM có xem trước (`DryRun`) và tùy chọn xử lý bản ghi hiện có. Thông báo nghiệp vụ vẫn quét khi gọi API; background service riêng kiểm tra hết hạn gói và reset quota theo tháng Việt Nam mỗi phút.
 
 ## Chạy ứng dụng
 
@@ -60,7 +63,7 @@ Sau khi deploy xong, mở địa chỉ Render cấp và đăng nhập bằng tà
 mật khẩu đã nhập ở `AdminCode`. Đổi mật khẩu trong **Cài đặt studio → Tài khoản studio**
 ngay sau lần đăng nhập đầu tiên.
 
-Lần chạy đầu tiên nếu chưa có dữ liệu và chưa cấu hình PostgreSQL, ứng dụng tạo `data/store.json` và nạp hai album mẫu:
+Lần chạy đầu tiên, ứng dụng nhập dữ liệu cũ hoặc dữ liệu mẫu vào SQLite `data/saas.db` (PostgreSQL nếu cấu hình). Studio hệ thống có hai album mẫu khi chưa có dữ liệu:
 
 | Album | Liên kết |
 | --- | --- |
@@ -69,7 +72,7 @@ Lần chạy đầu tiên nếu chưa có dữ liệu và chưa cấu hình Post
 
 Trang quản trị: http://localhost:5080/admin
 
-Tài khoản quản trị mặc định: `admin` · mật khẩu `studio2026`.
+Tài khoản quản trị khởi tạo: `admin`, mật khẩu theo `AdminCode` cấu hình. Cấu hình giá trị riêng trước khi chạy công khai.
 
 > Hãy đổi mật khẩu này ngay trong **Cài đặt studio → Tài khoản studio** trước khi đưa ứng dụng lên mạng. Xem phần [Bảo mật](#bảo-mật).
 
@@ -229,8 +232,8 @@ Cấu hình được đọc qua ASP.NET Core configuration (JSON và biến môi
 | --- | --- | --- |
 | `AdminCode` | mật khẩu phát triển mặc định | Mật khẩu bootstrap và mã đăng nhập tương thích cũ; phải đặt riêng khi triển khai |
 | `GoogleDrive:ApiKey` | rỗng | API key Google Drive |
-| `Data:Directory` | `data` | Thư mục chứa `store.json` |
-| `ConnectionStrings:Postgres` | rỗng | Chuỗi kết nối PostgreSQL; khi có giá trị, PostgreSQL thay cho `store.json` |
+| `Data:Directory` | `data` | Thư mục SQLite `saas.db` và nguồn import JSON cũ |
+| `ConnectionStrings:Postgres` | rỗng | Chuỗi kết nối PostgreSQL thay cho SQLite |
 | `Storage:Provider` | `local` | Đặt `s3` để lưu ảnh chứng từ, logo và ảnh đăng nhập trong object storage |
 | `Storage:Endpoint` | rỗng | S3 endpoint, ví dụ endpoint bucket Cloudflare R2 |
 | `Storage:Region` | xem cấu hình triển khai | Bắt buộc khi dùng S3; phải phù hợp nhà cung cấp |
@@ -241,8 +244,7 @@ Cấu hình được đọc qua ASP.NET Core configuration (JSON và biến môi
 `AdminCode` tạo mật khẩu tài khoản admin đầu tiên. Đổi biến này không đổi password hash
 của tài khoản đã có, nhưng **có đổi mã đăng nhập legacy sau khi khởi động lại**.
 `POST /api/auth/login` hiện vẫn chấp nhận body có `code` khi không có `username` và đăng
-nhập quản trị viên hoạt động đầu tiên. Đổi mật khẩu tài khoản không thu hồi mã legacy này.
-Luồng này được ghi nhận để sửa riêng; bản cập nhật tài liệu/test không thay đổi auth.
+nhập quản trị viên hoạt động đầu tiên, chỉ trong studio hệ thống. Studio mới bắt buộc username/password. Đổi mật khẩu tài khoản không thu hồi mã legacy của studio hệ thống.
 
 `ConnectionStrings:Postgres` được ưu tiên trước `DATABASE_URL`. Khi biến thứ nhất được
 đặt thành chuỗi rỗng, fallback `DATABASE_URL` không được dùng (code dùng toán tử `??`).
@@ -264,29 +266,23 @@ dotnet run --no-launch-profile
 
 ## Dữ liệu
 
-- Không cấu hình PostgreSQL: toàn bộ trạng thái lưu trong `<Data:Directory>/store.json`.
-- Có `ConnectionStrings:Postgres` hoặc fallback `DATABASE_URL`: ứng dụng tạo bảng
-  `app_state` nếu chưa có, đọc/ghi toàn bộ trạng thái vào cột `data` kiểu JSONB tại `id = 1`.
-  Đây chưa phải mô hình bảng quan hệ riêng cho từng thực thể.
-- Nếu bản ghi PostgreSQL chưa tồn tại nhưng JSON local có sẵn, startup nhập JSON đó.
-  Khi database đã có dữ liệu, PostgreSQL là nguồn chính; JSON local không được cập nhật như bản sao lưu.
+- Không cấu hình PostgreSQL: dữ liệu runtime lưu trong `<Data:Directory>/saas.db` qua EF Core SQLite.
+- Có `ConnectionStrings:Postgres` hoặc fallback `DATABASE_URL`: EF Core tạo/nâng cấp các bảng tenant trong cùng PostgreSQL.
+- Startup chạy migration rồi nhập JSON/`app_state` cũ một lần vào studio `system-master`. Nguồn cũ được giữ lại nhưng không đồng bộ ghi tiếp. Studio hệ thống được gói STUDIO quà tặng để giữ quyền các tính năng đang dùng; studio tạo mới là Free.
 - Migration hiện nâng cấp dữ liệu cũ đến schema **8** (model `AppData` còn khởi tạo giá trị 7;
   `DataStore` áp dụng migration khi mở). Các khoản chi cũ giữ loại `expense`.
 - Startup còn normalize dữ liệu; sao lưu trước khi chạy phiên bản mới trên dữ liệu thật.
-- Ghi local dùng file tạm rồi thay thế. Khóa trong RAM chỉ bảo vệ một tiến trình;
-  callback ghi hoặc thao tác lưu lỗi không rollback trạng thái RAM đã thay đổi.
-- Mỗi lần ghi serialize toàn bộ trạng thái. Không chạy nhiều instance ghi cùng database/file:
-  các snapshot RAM độc lập có thể ghi đè cập nhật của nhau.
+- Mỗi lần ghi chạy transaction, đọc lại dữ liệu của tenant, kiểm tra quyền sở hữu và đối chiếu các collection; lỗi writer/ghi DB rollback. PostgreSQL khóa workspace khi ghi; SQLite phù hợp local hoặc một instance. Việc tải cả workspace mỗi request còn cần tối ưu khi dữ liệu lớn.
 - Mật khẩu tài khoản lưu dưới dạng PBKDF2-HMAC-SHA256 với salt riêng. Google API key nhập
   qua Cài đặt được lưu trong trạng thái và ưu tiên hơn key cấu hình môi trường.
-- Với local: sao lưu `store.json` và cả thư mục `finance-photos/` (chứa cả object branding).
+- Với local: sao lưu SQLite nhất quán (bao gồm WAL nếu có), nguồn `store.json` cũ nếu còn, và cả thư mục `finance-photos/` (chứa cả object branding).
   Với PostgreSQL/S3: sao lưu database và toàn bộ object tương ứng trong bucket; giữ cấu hình
   kết nối an toàn. Không coi import CRM là thay thế cho backup/restore toàn bộ hệ thống.
 - Không commit `data/` hoặc bản sao lưu chứa thông tin khách hàng, hash mật khẩu hay API key.
 
 ## Bảo mật
 
-Đây là ứng dụng một studio, chạy trên một máy chủ, không phải hệ thống multi-tenant.
+Tenant được phân giải từ `/s/{slug}`, subdomain hoặc custom domain đã xác minh và còn quyền trả phí. Session gắn tenant và cookie riêng; tenant không xác định trả 404, không fallback sang dữ liệu hệ thống. Xem [giới hạn triển khai SaaS](docs/SAAS-COMMERCIAL.md#giới-hạn-cần-hoàn-thiện) trước khi mở bán.
 
 Trước khi triển khai công khai:
 
@@ -296,7 +292,7 @@ Trước khi triển khai công khai:
 4. Bảo vệ thư mục `data/` và sao lưu thường xuyên. Tệp chứa hash mật khẩu và API key.
 5. Cân nhắc thêm rate limit cho `/api/auth/login` ở reverse proxy. Ứng dụng chỉ có độ trễ 320 ms cho mỗi lần nhập sai, không có khoá tài khoản.
 6. Liên kết album là bearer token: ai có liên kết đều xem được album. Dùng **Đổi liên kết chia sẻ** khi cần thu hồi quyền truy cập.
-7. Phiên có thời hạn 14 ngày, lưu trong RAM; restart đăng xuất tất cả. Đổi/reset mật khẩu hiện chưa thu hồi toàn bộ phiên cũ. Cookie dùng `HttpOnly`, `SameSite=Lax`; `Secure` phụ thuộc request HTTPS. Cần kiểm tra forwarded headers thực tế sau reverse proxy.
+7. Phiên có thời hạn 14 ngày, lưu trong RAM; restart đăng xuất tất cả. Đổi mật khẩu giữ lại trình duyệt vừa đổi và thu hồi các phiên khác; quản trị reset mật khẩu, reset bằng email hoặc khóa tài khoản sẽ thu hồi toàn bộ phiên của tài khoản trong đúng studio. Cookie dùng `HttpOnly`, `SameSite=Lax`; `Secure` phụ thuộc request HTTPS. Cần kiểm tra forwarded headers thực tế sau reverse proxy.
 8. Trang Cài đặt và các API quản lý tài khoản chỉ cho vai trò quản trị viên. Tài khoản bị tạm khoá mất hiệu lực ngay cả khi đang có phiên.
 
 ## Triển khai
@@ -323,7 +319,8 @@ Nên đặt ứng dụng sau reverse proxy có HTTPS và giữ nguyên thư mụ
 ```text
 Api/                 endpoint công khai, quản trị và đăng nhập
 Models/              model dữ liệu, DTO, session store
-Services/            JSON store, Google Drive, dữ liệu mẫu, tiện ích
+Services/            facade dữ liệu, subscription guard/billing, Google Drive, tiện ích
+Persistence/         DbContext, migration EF, tenant resolver và transaction
 wwwroot/
   assets/css/        styles.css, admin.css, album.css
   assets/js/         app.js (router), admin.js, crm.js, sales.js, operations.js,
@@ -333,7 +330,7 @@ wwwroot/
   index.html         điểm vào của SPA
 tests/               xUnit, runner API dữ liệu tạm, smoke API/S3 và test trình duyệt
 .github/workflows/   CI backend (build, test, smoke và publish)
-data/store.json      dữ liệu studio local (tự tạo khi không dùng PostgreSQL)
+data/saas.db         dữ liệu tenant local; store.json cũ là nguồn import
 Program.cs           cấu hình ASP.NET Core, CSP, static files, fallback
 ```
 
@@ -341,13 +338,14 @@ Frontend là HTML/CSS/ES module thuần, không cần Node.js hay bước build.
 
 ## Giới hạn hiện tại
 
-- Không gửi email tự động; studio sao chép liên kết và gửi thủ công.
+- Lời mời thành viên gửi qua SMTP khi đã cấu hình; chia sẻ album vẫn sao chép liên kết thủ công.
 - Chưa có tải toàn bộ album dạng ZIP; chỉ tải từng ảnh hoặc xuất CSV lựa chọn.
 - Công cụ lọc ảnh cần Chrome/Edge trên máy tính và quyền truy cập thư mục; Firefox và Safari chưa hỗ trợ File System Access API.
 - Kết quả lọc ảnh chỉ được ghi vào thư mục do người dùng chọn trên máy, không đồng bộ ngược lên album.
 - Drive API key chỉ đọc được thư mục công khai, không hỗ trợ thư mục riêng tư hoặc tài khoản Drive được uỷ quyền.
 - Bố cục gallery dùng CSS multi-column nên thứ tự hiển thị theo cột; thứ tự này có thể khác thứ tự đọc từng hàng.
-- Cả JSON local và PostgreSQL JSONB hiện phù hợp triển khai một studio/một instance. Mở rộng nhiều instance cần xử lý đồng bộ ghi; thêm PostgreSQL hiện tại chưa tự giải quyết vấn đề này.
+- Chưa có AI Face Search, quản lý video 5 phiên bản, watermark chữ ký, Google Calendar hai chiều, xuất Google Sheets hoặc bàn giao két sắt hoàn chỉnh. Các mục này có quyền theo gói nhưng chưa có tích hợp nghiệp vụ tương ứng.
+- Session vẫn trong RAM và media local chưa chia sẻ giữa replica. PostgreSQL có transaction nhưng cần session store chung, object storage và kiểm thử tải trước khi chạy nhiều instance.
 
 ## Build, test và CI
 

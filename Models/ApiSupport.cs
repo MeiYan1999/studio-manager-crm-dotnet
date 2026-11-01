@@ -2,19 +2,24 @@ using System.Collections.Concurrent;
 using System.Security.Cryptography;
 using System.Text;
 using StudioCore.Services;
+using StudioCore.Persistence;
 
 namespace StudioCore.Models;
 
 public sealed class ApiException : Exception
 {
-    public ApiException(int statusCode, string message, string? code = null) : base(message)
+    public ApiException(int statusCode, string message, string? code = null, string? feature = null, string? requiredPlan = null) : base(message)
     {
         StatusCode = statusCode;
         Code = code;
+        Feature = feature;
+        RequiredPlan = requiredPlan;
     }
 
     public int StatusCode { get; }
     public string? Code { get; }
+    public string? Feature { get; }
+    public string? RequiredPlan { get; }
 }
 
 public sealed class AdminSessionStore
@@ -22,6 +27,7 @@ public sealed class AdminSessionStore
     public const string CookieName = "may_studio_session";
     private static readonly TimeSpan SessionLifetime = TimeSpan.FromDays(14);
     private readonly ConcurrentDictionary<string, SessionEntry> _sessions = new(StringComparer.Ordinal);
+    private readonly ConcurrentDictionary<string, long> _revocationVersions = new(StringComparer.Ordinal);
     private readonly DataStore _dataStore;
     private readonly byte[] _codeHash;
 
@@ -42,9 +48,15 @@ public sealed class AdminSessionStore
         return CryptographicOperations.FixedTimeEquals(Hash(code), _codeHash);
     }
 
+    private static string Cookie(HttpContext context)
+    {
+        var tenant = context.RequestServices.GetRequiredService<TenantContext>().TenantId;
+        return tenant == Studio.MasterId ? CookieName : CookieName + "_" + tenant;
+    }
+
     public StudioUser? GetCurrentUser(HttpContext context)
     {
-        if (!context.Request.Cookies.TryGetValue(CookieName, out var token) ||
+        if (!context.Request.Cookies.TryGetValue(Cookie(context), out var token) ||
             string.IsNullOrWhiteSpace(token))
         {
             return null;
@@ -55,6 +67,8 @@ public sealed class AdminSessionStore
             return null;
         }
 
+        if (entry.TenantId != context.RequestServices.GetRequiredService<TenantContext>().TenantId) return null;
+
         if (entry.ExpiresAt <= DateTimeOffset.UtcNow)
         {
             _sessions.TryRemove(token, out _);
@@ -63,7 +77,10 @@ public sealed class AdminSessionStore
 
         var user = _dataStore.Read(data => data.Users.FirstOrDefault(candidate =>
             string.Equals(candidate.Id, entry.UserId, StringComparison.Ordinal)));
-        if (user is null || !user.IsActive)
+        if (user is null ||
+            !user.IsActive ||
+            entry.RevocationVersion != GetRevocationVersion(entry.TenantId, entry.UserId) ||
+            !CryptographicOperations.FixedTimeEquals(entry.PasswordFingerprint, Fingerprint(user.PasswordHash)))
         {
             _sessions.TryRemove(token, out _);
             return null;
@@ -74,16 +91,51 @@ public sealed class AdminSessionStore
 
     public bool IsAuthenticated(HttpContext context) => GetCurrentUser(context) is not null;
 
+    public void RevokeUserSessions(HttpContext context, string userId)
+    {
+        var tenantId = context.RequestServices.GetRequiredService<TenantContext>().TenantId;
+        _revocationVersions.AddOrUpdate(RevocationKey(tenantId, userId), 1, (_, version) => version + 1);
+        foreach (var entry in _sessions)
+            if (entry.Value.TenantId == tenantId && entry.Value.UserId == userId)
+                _sessions.TryRemove(entry.Key, out _);
+    }
+
     public StudioUser RequireUser(HttpContext context) =>
         GetCurrentUser(context)
         ?? throw new ApiException(401, "Phiên đăng nhập đã hết hạn.", "unauthorized");
 
     public void SignIn(HttpContext context, StudioUser user)
+        => SignIn(context, user, expectedRevocationVersion: null);
+
+    public long CaptureRevocationVersion(HttpContext context, string userId)
+    {
+        var tenantId = context.RequestServices.GetRequiredService<TenantContext>().TenantId;
+        return GetRevocationVersion(tenantId, userId);
+    }
+
+    public void SignIn(HttpContext context, StudioUser user, long? expectedRevocationVersion)
     {
         PruneExpired();
+        var tenantId = context.RequestServices.GetRequiredService<TenantContext>().TenantId;
+        var current = _dataStore.Read(data => data.Users.FirstOrDefault(candidate =>
+            string.Equals(candidate.Id, user.Id, StringComparison.Ordinal)));
+        var version = GetRevocationVersion(tenantId, user.Id);
+        if (current is null ||
+            !current.IsActive ||
+            (expectedRevocationVersion is not null && expectedRevocationVersion.Value != version) ||
+            !CryptographicOperations.FixedTimeEquals(Fingerprint(current.PasswordHash), Fingerprint(user.PasswordHash)))
+        {
+            throw new ApiException(401, "Tài khoản hoặc thông tin đăng nhập đã thay đổi. Vui lòng đăng nhập lại.", "session_revoked");
+        }
+
         var token = Convert.ToHexString(RandomNumberGenerator.GetBytes(32)).ToLowerInvariant();
-        _sessions[token] = new SessionEntry(user.Id, DateTimeOffset.UtcNow.Add(SessionLifetime));
-        context.Response.Cookies.Append(CookieName, token, new CookieOptions
+        _sessions[token] = new SessionEntry(
+            current.Id,
+            tenantId,
+            DateTimeOffset.UtcNow.Add(SessionLifetime),
+            version,
+            Fingerprint(current.PasswordHash));
+        context.Response.Cookies.Append(Cookie(context), token, new CookieOptions
         {
             HttpOnly = true,
             Secure = context.Request.IsHttps,
@@ -96,12 +148,12 @@ public sealed class AdminSessionStore
 
     public void SignOut(HttpContext context)
     {
-        if (context.Request.Cookies.TryGetValue(CookieName, out var token))
+        if (context.Request.Cookies.TryGetValue(Cookie(context), out var token))
         {
             _sessions.TryRemove(token, out _);
         }
 
-        context.Response.Cookies.Delete(CookieName, new CookieOptions
+        context.Response.Cookies.Delete(Cookie(context), new CookieOptions
         {
             Path = "/",
             HttpOnly = true,
@@ -124,7 +176,17 @@ public sealed class AdminSessionStore
 
     private static byte[] Hash(string value) => SHA256.HashData(Encoding.UTF8.GetBytes(value));
 
-    private sealed record SessionEntry(string UserId, DateTimeOffset ExpiresAt);
+    private static byte[] Fingerprint(string passwordHash) => Hash(passwordHash ?? "");
+    private static string RevocationKey(string tenantId, string userId) => tenantId + "\n" + userId;
+    private long GetRevocationVersion(string tenantId, string userId) =>
+        _revocationVersions.GetValueOrDefault(RevocationKey(tenantId, userId));
+
+    private sealed record SessionEntry(
+        string UserId,
+        string TenantId,
+        DateTimeOffset ExpiresAt,
+        long RevocationVersion,
+        byte[] PasswordFingerprint);
 }
 
 public static class StudioAccess

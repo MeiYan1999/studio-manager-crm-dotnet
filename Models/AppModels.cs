@@ -36,6 +36,13 @@ public sealed class AppData
 
 public sealed class WebsiteContent
 {
+    public List<string> SectionOrder { get; set; } = ["hero", "highlights", "howItWorks", "pricing", "concepts", "studio"];
+    public bool ShowHero { get; set; } = true;
+    public bool ShowHighlights { get; set; } = true;
+    public bool ShowHowItWorks { get; set; } = true;
+    public bool ShowPricing { get; set; } = true;
+    public bool ShowConcepts { get; set; } = true;
+    public bool ShowStudio { get; set; } = true;
     public string LoadingName { get; set; } = "";
     public string LoadingText { get; set; } = "Đang mở studio…";
     public string LoginName { get; set; } = "";
@@ -47,13 +54,26 @@ public sealed class WebsiteContent
     public string SampleAlbumsLabel { get; set; } = "Concept";
     public string ForStudioLabel { get; set; } = "Dành cho studio";
     public string HeroTitle { get; set; } = "Mỗi khoảnh khắc, một lời nhớ.";
+    public string HeroTagline { get; set; } = "Lưu giữ những điều thương mến.";
+    public string HeroCtaLabel { get; set; } = "Khám phá concept";
+    public string HeroCtaUrl { get; set; } = "#concepts";
     public string HeroDescription { get; set; } = "StudioCore gom những ngày đẹp nhất vào một album riêng. Bạn chỉ cần mở liên kết, thả tim những tấm ảnh mình yêu và gửi lại cho studio.";
     public string FooterDescription { get; set; } = "Album ảnh riêng tư, được làm bằng sự chăm chút.";
     public string FooterPrivacy { get; set; } = "Album được chia sẻ riêng cho từng khách hàng.";
 }
 
+public sealed class StudioServiceType
+{
+    public string Name { get; set; } = "";
+    public string Color { get; set; } = "#42665b";
+}
+
 public sealed class StudioSettings
 {
+    public List<StudioServiceType> ServiceTypes { get; set; } = [];
+    public string ShareMessage { get; set; } = "Mời bạn xem album và chọn những tấm ảnh yêu thích.";
+    public string Greeting { get; set; } = "Chào mừng bạn đến với studio.";
+    public string ContractTemplate { get; set; } = "";
     public string HomeImageKey { get; set; } = "";
     public string HomeImageContentType { get; set; } = "image/png";
     public string HomeImageUrl => HomeImageKey.Length > 0 ? "/api/public/home-image?v=" + HomeImageKey : "";
@@ -69,13 +89,16 @@ public sealed class StudioSettings
     public WebsiteContent Website { get; set; } = new();
 }
 
-public sealed class StudioUser
+public sealed class StudioUser : IMustHaveTenant
 {
+    public string Email { get; set; } = "";
+    public string TenantId { get; set; } = "";
     public string Id { get; set; } = Guid.NewGuid().ToString("N")[..12];
     public string Username { get; set; } = "";
     public string DisplayName { get; set; } = "";
     public string Role { get; set; } = "employee";
     public string PasswordHash { get; set; } = "";
+    public bool IsEmailVerified { get; set; } = true;
     public bool IsActive { get; set; } = true;
     public bool MustChangePassword { get; set; }
     public string StaffId { get; set; } = "";
@@ -141,8 +164,9 @@ public static class StudioPermissions
     }
 }
 
-public sealed class Album
+public sealed class Album : IMustHaveTenant
 {
+    public string TenantId { get; set; } = "";
     public string Id { get; set; } = Guid.NewGuid().ToString("N");
     public string ShareToken { get; set; } = "";
     public string Title { get; set; } = "";
@@ -172,8 +196,9 @@ public sealed class Album
         Selections.Select(selection => selection.PhotoId).ToHashSet(StringComparer.Ordinal);
 }
 
-public sealed class Photo
+public sealed class Photo : IMustHaveTenant
 {
+    public string TenantId { get; set; } = "";
     public string Id { get; set; } = Guid.NewGuid().ToString("N");
     public string DriveFileId { get; set; } = "";
     public string Code { get; set; } = "";
@@ -188,16 +213,18 @@ public sealed class Photo
     public DateTimeOffset? TakenAt { get; set; }
 }
 
-public sealed class PhotoSelection
+public sealed class PhotoSelection : IMustHaveTenant
 {
+    public string TenantId { get; set; } = "";
     public string PhotoId { get; set; } = "";
     public DateTimeOffset SelectedAt { get; set; } = DateTimeOffset.UtcNow;
 }
 
 // ---------- Studio CRM ----------
 
-public sealed class Customer
+public sealed class Customer : IMustHaveTenant
 {
+    public string TenantId { get; set; } = "";
     public string Id { get; set; } = Guid.NewGuid().ToString("N")[..12];
     public string Name { get; set; } = "";
     public string Type { get; set; } = "individual";
@@ -211,8 +238,9 @@ public sealed class Customer
     public DateTimeOffset UpdatedAt { get; set; } = DateTimeOffset.UtcNow;
 }
 
-public sealed class ServicePackage
+public sealed class ServicePackage : IMustHaveTenant
 {
+    public string TenantId { get; set; } = "";
     public string Id { get; set; } = Guid.NewGuid().ToString("N")[..12];
     public string Name { get; set; } = "";
     public string Category { get; set; } = "";
@@ -225,8 +253,9 @@ public sealed class ServicePackage
     public DateTimeOffset UpdatedAt { get; set; } = DateTimeOffset.UtcNow;
 }
 
-public sealed class StaffMember
+public sealed class StaffMember : IMustHaveTenant
 {
+    public string TenantId { get; set; } = "";
     public string Id { get; set; } = Guid.NewGuid().ToString("N")[..12];
     public string Name { get; set; } = "";
     public string Role { get; set; } = "photographer";
@@ -293,8 +322,9 @@ public static class StaffShifts
 /// Một dòng trong sổ thu chi. Trước phiên bản 8 đây chỉ là khoản chi;
 /// từ phiên bản 8 trường <see cref="Kind"/> phân biệt khoản thu và khoản chi.
 /// </summary>
-public sealed class ExpenseEntry
+public sealed class ExpenseEntry : IMustHaveTenant
 {
+    public string TenantId { get; set; } = "";
     public string Id { get; set; } = Guid.NewGuid().ToString("N")[..12];
     public string Kind { get; set; } = FinanceEntryKinds.Expense;
     public string Date { get; set; } = "";
@@ -312,8 +342,9 @@ public sealed class ExpenseEntry
 /// Ảnh chứng từ gắn với một khoản thu/chi. Tệp nằm trong thư mục dữ liệu
 /// và chỉ được trả về qua endpoint có kiểm tra quyền tài chính.
 /// </summary>
-public sealed class FinancePhoto
+public sealed class FinancePhoto : IMustHaveTenant
 {
+    public string TenantId { get; set; } = "";
     public string Id { get; set; } = Guid.NewGuid().ToString("N")[..12];
     public string FileName { get; set; } = "";
     public string OriginalName { get; set; } = "";
@@ -382,8 +413,9 @@ public static class IncomeCategories
     }
 }
 
-public sealed class PayrollEntry
+public sealed class PayrollEntry : IMustHaveTenant
 {
+    public string TenantId { get; set; } = "";
     public string Id { get; set; } = Guid.NewGuid().ToString("N")[..12];
     public string Month { get; set; } = "";
     public string StaffId { get; set; } = "";
@@ -398,8 +430,9 @@ public sealed class PayrollEntry
     public DateTimeOffset UpdatedAt { get; set; } = DateTimeOffset.UtcNow;
 }
 
-public sealed class AttendanceRecord
+public sealed class AttendanceRecord : IMustHaveTenant
 {
+    public string TenantId { get; set; } = "";
     public string Id { get; set; } = Guid.NewGuid().ToString("N")[..12];
     public string StaffId { get; set; } = "";
     public string Date { get; set; } = "";
@@ -415,8 +448,9 @@ public sealed class AttendanceRecord
 /// <see cref="Shift"/> để trống nghĩa là dùng ca mặc định trong hồ sơ nhân sự,
 /// "off" là ngày nghỉ. Không có bản ghi nghĩa là ngày chưa được phân ca.
 /// </summary>
-public sealed class ShiftAssignment
+public sealed class ShiftAssignment : IMustHaveTenant
 {
+    public string TenantId { get; set; } = "";
     public string Id { get; set; } = Guid.NewGuid().ToString("N")[..12];
     public string StaffId { get; set; } = "";
     public string Date { get; set; } = "";
@@ -470,8 +504,9 @@ public static class ShiftAssignmentKinds
     }
 }
 
-public sealed class Outfit
+public sealed class Outfit : IMustHaveTenant
 {
+    public string TenantId { get; set; } = "";
     public string Id { get; set; } = Guid.NewGuid().ToString("N")[..12];
     public string Name { get; set; } = "";
     public string Category { get; set; } = "";
@@ -504,8 +539,9 @@ public static class OutfitCategories
     }
 }
 
-public sealed class StudioConcept
+public sealed class StudioConcept : IMustHaveTenant
 {
+    public string TenantId { get; set; } = "";
     public string Category { get; set; } = "";
     public string AlbumId { get; set; } = "";
     public bool IsPublished { get; set; }
@@ -532,8 +568,9 @@ public static class ConceptStatuses
         string.Equals(value, Maintenance, StringComparison.OrdinalIgnoreCase) ? Maintenance : Ready;
 }
 
-public sealed class OutfitLoan
+public sealed class OutfitLoan : IMustHaveTenant
 {
+    public string TenantId { get; set; } = "";
     public string Id { get; set; } = Guid.NewGuid().ToString("N")[..12];
     public string OutfitId { get; set; } = "";
     public int Quantity { get; set; } = 1;
@@ -564,8 +601,9 @@ public static class LoanBorrowerTypes
         string.Equals(value, Staff, StringComparison.OrdinalIgnoreCase) ? Staff : Customer;
 }
 
-public sealed class NotificationEntry
+public sealed class NotificationEntry : IMustHaveTenant
 {
+    public string TenantId { get; set; } = "";
     public string Id { get; set; } = Guid.NewGuid().ToString("N")[..12];
     public string Type { get; set; } = NotificationTypes.System;
     public string Title { get; set; } = "";
@@ -594,8 +632,9 @@ public static class NotificationTypes
         IsKnown(value) ? value!.Trim().ToLowerInvariant() : System;
 }
 
-public sealed class NotificationSettings
+public sealed class NotificationSettings : IMustHaveTenant
 {
+    public string TenantId { get; set; } = "";
     public bool Master { get; set; } = true;
     public bool Booking { get; set; } = true;
     public bool Payment { get; set; } = true;
@@ -622,8 +661,9 @@ public static class BookingStatuses
         !string.IsNullOrWhiteSpace(status) && All.Contains(status, StringComparer.Ordinal);
 }
 
-public sealed class Booking
+public sealed class Booking : IMustHaveTenant
 {
+    public string TenantId { get; set; } = "";
     public string Id { get; set; } = Guid.NewGuid().ToString("N")[..12];
     public string Code { get; set; } = "";
     public string CustomerId { get; set; } = "";
@@ -642,15 +682,17 @@ public sealed class Booking
     public DateTimeOffset UpdatedAt { get; set; } = DateTimeOffset.UtcNow;
 }
 
-public sealed class BookingStatusEntry
+public sealed class BookingStatusEntry : IMustHaveTenant
 {
+    public string TenantId { get; set; } = "";
     public string Status { get; set; } = BookingStatuses.Pending;
     public string ActorName { get; set; } = "";
     public DateTimeOffset ChangedAt { get; set; } = DateTimeOffset.UtcNow;
 }
 
-public sealed class AuditLogEntry
+public sealed class AuditLogEntry : IMustHaveTenant
 {
+    public string TenantId { get; set; } = "";
     public string Id { get; set; } = Guid.NewGuid().ToString("N")[..12];
     public string Module { get; set; } = "";
     public string Action { get; set; } = "";
@@ -678,15 +720,17 @@ public static class OrderStatuses
         !string.IsNullOrWhiteSpace(status) && All.Contains(status, StringComparer.Ordinal);
 }
 
-public sealed class OrderItem
+public sealed class OrderItem : IMustHaveTenant
 {
+    public string TenantId { get; set; } = "";
     public string Name { get; set; } = "";
     public decimal Quantity { get; set; } = 1;
     public decimal UnitPrice { get; set; }
 }
 
-public sealed class Order
+public sealed class Order : IMustHaveTenant
 {
+    public string TenantId { get; set; } = "";
     public string Id { get; set; } = Guid.NewGuid().ToString("N")[..12];
     public string Code { get; set; } = "";
     public string CustomerId { get; set; } = "";
@@ -712,8 +756,9 @@ public static class PaymentMethods
         !string.IsNullOrWhiteSpace(method) && All.Contains(method, StringComparer.Ordinal);
 }
 
-public sealed class Payment
+public sealed class Payment : IMustHaveTenant
 {
+    public string TenantId { get; set; } = "";
     public string Id { get; set; } = Guid.NewGuid().ToString("N")[..12];
     public string Code { get; set; } = "";
     public string OrderId { get; set; } = "";
@@ -741,8 +786,9 @@ public static class ContractStatuses
         !string.IsNullOrWhiteSpace(status) && All.Contains(status, StringComparer.Ordinal);
 }
 
-public sealed class ContractScheduleItem
+public sealed class ContractScheduleItem : IMustHaveTenant
 {
+    public string TenantId { get; set; } = "";
     public string Label { get; set; } = "";
     public decimal Amount { get; set; }
     public string DueDate { get; set; } = "";
@@ -750,8 +796,10 @@ public sealed class ContractScheduleItem
     public string PaidAt { get; set; } = "";
 }
 
-public sealed class Contract
+public sealed class Contract : IMustHaveTenant
 {
+    public string Location { get; set; } = "";
+    public string TenantId { get; set; } = "";
     public string Id { get; set; } = Guid.NewGuid().ToString("N")[..12];
     public string Code { get; set; } = "";
     public string CustomerId { get; set; } = "";
@@ -767,8 +815,9 @@ public sealed class Contract
 
 // ---------- Task board ----------
 
-public sealed class TaskBoard
+public sealed class TaskBoard : IMustHaveTenant
 {
+    public string TenantId { get; set; } = "";
     public string Id { get; set; } = "studio-board";
     public string Title { get; set; } = "Bảng công việc";
     public string Description { get; set; } = "";
@@ -781,15 +830,17 @@ public sealed class TaskBoard
     public List<TaskList> Lists { get; set; } = [];
 }
 
-public sealed class TaskLabel
+public sealed class TaskLabel : IMustHaveTenant
 {
+    public string TenantId { get; set; } = "";
     public string Id { get; set; } = Guid.NewGuid().ToString("N")[..10];
     public string Name { get; set; } = "";
     public string Color { get; set; } = "#b25f46";
 }
 
-public sealed class TaskList
+public sealed class TaskList : IMustHaveTenant
 {
+    public string TenantId { get; set; } = "";
     public string Id { get; set; } = Guid.NewGuid().ToString("N")[..10];
     public string Title { get; set; } = "";
     public string Color { get; set; } = "#c3a47a";
@@ -799,8 +850,9 @@ public sealed class TaskList
     public List<TaskCard> Cards { get; set; } = [];
 }
 
-public sealed class TaskCard
+public sealed class TaskCard : IMustHaveTenant
 {
+    public string TenantId { get; set; } = "";
     public string Id { get; set; } = Guid.NewGuid().ToString("N")[..10];
     public string Title { get; set; } = "";
     public string Description { get; set; } = "";
@@ -818,15 +870,17 @@ public sealed class TaskCard
     public List<TaskActivity> Activities { get; set; } = [];
 }
 
-public sealed class TaskChecklistItem
+public sealed class TaskChecklistItem : IMustHaveTenant
 {
+    public string TenantId { get; set; } = "";
     public string Id { get; set; } = Guid.NewGuid().ToString("N")[..10];
     public string Text { get; set; } = "";
     public bool Done { get; set; }
 }
 
-public sealed class TaskActivity
+public sealed class TaskActivity : IMustHaveTenant
 {
+    public string TenantId { get; set; } = "";
     public string Id { get; set; } = Guid.NewGuid().ToString("N")[..10];
     public string Type { get; set; } = "updated";
     public string ActorId { get; set; } = "";
@@ -1258,6 +1312,7 @@ public sealed class CreateContractRequest
     public string Preset { get; set; } = "30/40/30";
     public string Terms { get; set; } = "";
     public string Status { get; set; } = ContractStatuses.Pending;
+    public string Location { get; set; } = "";
 }
 
 public sealed class UpdateContractRequest
@@ -1269,6 +1324,7 @@ public sealed class UpdateContractRequest
     public string? Preset { get; set; }
     public string? Terms { get; set; }
     public string? Status { get; set; }
+    public string? Location { get; set; }
 }
 
 public sealed class ToggleContractScheduleRequest
@@ -1435,7 +1491,11 @@ public sealed record PublicAlbumDto(
     DateTimeOffset? SubmittedAt,
     string ClientNote,
     List<PhotoDto> Photos,
-    List<string> SelectedPhotoIds);
+    List<string> SelectedPhotoIds)
+{
+    public string Greeting { get; init; } = "";
+    public string ShareMessage { get; init; } = "";
+}
 
 public sealed record PublicFavoriteDto(
     List<string> SelectedPhotoIds,
@@ -1462,7 +1522,7 @@ public sealed record DrivePreviewDto(
     List<DrivePreviewPhotoDto> Photos,
     bool Truncated);
 
-public sealed record ApiErrorDto(string Error, string? Code = null);
+public sealed record ApiErrorDto(string Error, string? Code = null, string? Feature = null, string? RequiredPlan = null);
 
 public sealed record SessionUserDto(
     string Id,
@@ -1666,7 +1726,10 @@ public sealed record ContractDto(
     List<ContractScheduleDto> Schedule,
     string Terms,
     DateTimeOffset CreatedAt,
-    DateTimeOffset UpdatedAt);
+    DateTimeOffset UpdatedAt)
+{
+    public string Location { get; init; } = "";
+}
 
 public sealed record InvoiceDto(
     string Code,

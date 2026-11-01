@@ -1,4 +1,5 @@
 using StudioCore.Models;
+using StudioCore.Persistence;
 using StudioCore.Services;
 
 namespace StudioCore.Api;
@@ -14,6 +15,7 @@ public static class AuthEndpoints
             var username = (request.Username ?? "").Trim().ToLowerInvariant();
             var password = request.Password ?? "";
             StudioUser? user;
+            long loginRevocationVersion;
 
             if (!string.IsNullOrWhiteSpace(username))
             {
@@ -29,8 +31,11 @@ public static class AuthEndpoints
                         "Tên đăng nhập hoặc mật khẩu chưa đúng. Vui lòng thử lại.",
                         "invalid_credentials");
                 }
+                if (!user.IsEmailVerified)
+                    throw new ApiException(403, "Email chưa được xác thực. Hãy mở liên kết StudioCore đã gửi cho bạn.", "email_not_verified");
+                loginRevocationVersion = sessions.CaptureRevocationVersion(context, user.Id);
             }
-            else if (!string.IsNullOrWhiteSpace(request.Code) && sessions.VerifyCode(request.Code))
+            else if (context.RequestServices.GetRequiredService<StudioCore.Persistence.TenantContext>().TenantId == Studio.MasterId && !string.IsNullOrWhiteSpace(request.Code) && sessions.VerifyCode(request.Code))
             {
                 // Keep the original access-code flow working for existing API
                 // clients; it signs in the first active administrator.
@@ -41,6 +46,7 @@ public static class AuthEndpoints
                     await Task.Delay(320);
                     throw new ApiException(401, "Chưa có tài khoản quản trị đang hoạt động.", "no_admin");
                 }
+                loginRevocationVersion = sessions.CaptureRevocationVersion(context, user.Id);
             }
             else
             {
@@ -63,7 +69,7 @@ public static class AuthEndpoints
                 }
             });
 
-            sessions.SignIn(context, user);
+            sessions.SignIn(context, user, loginRevocationVersion);
             var studioName = store.Read(data => data.Settings.StudioName);
             return Results.Ok(new SessionDto(true, studioName, ApiMappings.ToSessionUser(user)));
         });
@@ -111,6 +117,8 @@ public static class AuthEndpoints
                 return user;
             });
 
+            sessions.RevokeUserSessions(context, updated.Id);
+            sessions.SignIn(context, updated);
             var studioName = store.Read(data => data.Settings.StudioName);
             return Results.Ok(new SessionDto(true, studioName, ApiMappings.ToSessionUser(updated)));
         });
@@ -120,5 +128,124 @@ public static class AuthEndpoints
             sessions.SignOut(context);
             return Results.NoContent();
         });
+
+        group.MapPost("/verify-email", (AccountTokenRequest request, TenantContext tenant, SaasDatabase database) =>
+        {
+            var tokenHash = ValidateToken(request.Token);
+            database.Mutate(tenant.TenantId, (db, _) =>
+            {
+                var token = db.Set<AccountToken>().SingleOrDefault(candidate =>
+                    candidate.Purpose == AccountTokens.VerifyEmail && candidate.TokenHash == tokenHash);
+                if (token is null || token.UsedAt is not null || token.ExpiresAt <= DateTimeOffset.UtcNow)
+                    throw new ApiException(400, "Liên kết xác thực đã hết hạn hoặc đã được sử dụng.", "invalid_account_token");
+                var user = db.Set<StudioUser>().SingleOrDefault(candidate => candidate.Id == token.UserId)
+                    ?? throw new ApiException(400, "Liên kết xác thực không còn hợp lệ.", "invalid_account_token");
+                user.IsEmailVerified = true;
+                user.UpdatedAt = DateTimeOffset.UtcNow;
+                token.UsedAt = DateTimeOffset.UtcNow;
+                return 0;
+            });
+            return Results.Ok(new { Verified = true });
+        }).RequireRateLimiting("account-lifecycle");
+
+        group.MapPost("/verification-email", async (AccountEmailRequest request, TenantContext tenant, SaasDatabase database, AccountEmailSender emailSender) =>
+        {
+            if (!emailSender.IsConfigured)
+                throw new ApiException(503, "Hệ thống chưa cấu hình gửi email.", "email_not_configured");
+            var identifier = NormalizeIdentifier(request.Identifier);
+            var issued = database.Mutate(tenant.TenantId, (db, studio) =>
+            {
+                var user = db.Set<StudioUser>().AsEnumerable().FirstOrDefault(candidate =>
+                    string.Equals(candidate.Email, identifier, StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(candidate.Username, identifier, StringComparison.OrdinalIgnoreCase));
+                if (user is null || !user.IsActive || user.IsEmailVerified) return null;
+                var now = DateTimeOffset.UtcNow;
+                foreach (var old in db.Set<AccountToken>().Where(candidate => candidate.UserId == user.Id && candidate.Purpose == AccountTokens.VerifyEmail && candidate.UsedAt == null))
+                    old.UsedAt = now;
+                var raw = AccountTokens.NewToken();
+                db.Add(new AccountToken { UserId = user.Id, Purpose = AccountTokens.VerifyEmail,
+                    TokenHash = AccountTokens.Hash(raw), ExpiresAt = now.AddHours(24) });
+                return new IssuedAccountToken(studio.Slug, user.Email, raw);
+            });
+            if (issued is not null)
+            {
+                var url = emailSender.PublicOrigin + $"/s/{issued.Slug}/admin/verify-email?token={issued.Token}";
+                await emailSender.SendAsync(issued.Email, "Xác thực tài khoản StudioCore", $"Xác thực email trong 24 giờ tại:\n{url}");
+            }
+            return Results.Accepted(value: new { Sent = true, Token = emailSender.IsTestMode ? issued?.Token : null });
+        }).RequireRateLimiting("account-lifecycle");
+
+        group.MapPost("/forgot-password", async (AccountEmailRequest request, TenantContext tenant, SaasDatabase database, AccountEmailSender emailSender) =>
+        {
+            if (!emailSender.IsConfigured)
+                throw new ApiException(503, "Hệ thống chưa cấu hình gửi email.", "email_not_configured");
+            var identifier = NormalizeIdentifier(request.Identifier);
+            var issued = database.Mutate(tenant.TenantId, (db, studio) =>
+            {
+                var user = db.Set<StudioUser>().AsEnumerable().FirstOrDefault(candidate => candidate.IsActive &&
+                    (string.Equals(candidate.Email, identifier, StringComparison.OrdinalIgnoreCase) ||
+                     string.Equals(candidate.Username, identifier, StringComparison.OrdinalIgnoreCase)));
+                if (user is null || string.IsNullOrWhiteSpace(user.Email)) return null;
+                var now = DateTimeOffset.UtcNow;
+                foreach (var old in db.Set<AccountToken>().Where(candidate => candidate.UserId == user.Id && candidate.Purpose == AccountTokens.ResetPassword && candidate.UsedAt == null))
+                    old.UsedAt = now;
+                var raw = AccountTokens.NewToken();
+                db.Add(new AccountToken { UserId = user.Id, Purpose = AccountTokens.ResetPassword,
+                    TokenHash = AccountTokens.Hash(raw), ExpiresAt = now.AddMinutes(30) });
+                return new IssuedAccountToken(studio.Slug, user.Email, raw);
+            });
+            if (issued is not null)
+            {
+                var url = emailSender.PublicOrigin + $"/s/{issued.Slug}/admin/reset-password?token={issued.Token}";
+                await emailSender.SendAsync(issued.Email, "Đặt lại mật khẩu StudioCore", $"Liên kết đặt lại mật khẩu có hiệu lực 30 phút:\n{url}\n\nNếu bạn không yêu cầu, hãy bỏ qua email này.");
+            }
+            return Results.Accepted(value: new { Sent = true, Token = emailSender.IsTestMode ? issued?.Token : null });
+        }).RequireRateLimiting("account-lifecycle");
+
+        group.MapPost("/reset-password", (ResetPasswordWithTokenRequest request, HttpContext context, TenantContext tenant, SaasDatabase database, AdminSessionStore sessions) =>
+        {
+            var tokenHash = ValidateToken(request.Token);
+            var password = request.NewPassword ?? "";
+            if (password.Length is < 8 or > 128)
+                throw new ApiException(400, "Mật khẩu mới cần từ 8 đến 128 ký tự.", "invalid_password");
+            var userId = database.Mutate(tenant.TenantId, (db, _) =>
+            {
+                var token = db.Set<AccountToken>().SingleOrDefault(candidate =>
+                    candidate.Purpose == AccountTokens.ResetPassword && candidate.TokenHash == tokenHash);
+                if (token is null || token.UsedAt is not null || token.ExpiresAt <= DateTimeOffset.UtcNow)
+                    throw new ApiException(400, "Liên kết đặt lại mật khẩu đã hết hạn hoặc đã được sử dụng.", "invalid_account_token");
+                var user = db.Set<StudioUser>().SingleOrDefault(candidate => candidate.Id == token.UserId && candidate.IsActive)
+                    ?? throw new ApiException(400, "Liên kết đặt lại mật khẩu không còn hợp lệ.", "invalid_account_token");
+                var now = DateTimeOffset.UtcNow;
+                user.PasswordHash = PasswordHasher.Hash(password);
+                user.MustChangePassword = false;
+                user.UpdatedAt = now;
+                foreach (var active in db.Set<AccountToken>().Where(candidate => candidate.UserId == user.Id && candidate.Purpose == AccountTokens.ResetPassword && candidate.UsedAt == null))
+                    active.UsedAt = now;
+                return user.Id;
+            });
+            sessions.RevokeUserSessions(context, userId);
+            return Results.Ok(new { Reset = true });
+        }).RequireRateLimiting("account-lifecycle");
+    }
+
+    private static string ValidateToken(string? token)
+    {
+        if (token is null || token.Length != 64 || !token.All(Uri.IsHexDigit))
+            throw new ApiException(400, "Liên kết tài khoản không hợp lệ.", "invalid_account_token");
+        return AccountTokens.Hash(token.ToLowerInvariant());
+    }
+
+    private static string NormalizeIdentifier(string? value)
+    {
+        var identifier = (value ?? "").Trim().ToLowerInvariant();
+        if (identifier.Length is < 3 or > 160)
+            throw new ApiException(400, "Nhập email hoặc tên đăng nhập hợp lệ.", "invalid_identifier");
+        return identifier;
     }
 }
+
+public sealed record AccountTokenRequest(string? Token);
+public sealed record AccountEmailRequest(string? Identifier);
+public sealed record ResetPasswordWithTokenRequest(string? Token, string? NewPassword);
+internal sealed record IssuedAccountToken(string? Slug, string Email, string Token);

@@ -15,7 +15,8 @@ python3 tests/run_backend.py
   làm tròn 15 phút, đi muộn/về sớm theo ca; phân tích link Drive; XLSX tiếng Việt và text
   giống công thức; lưu/mở lại JSON, cô lập ReadClone, tương thích dữ liệu cũ khi thêm ảnh trang chủ và migration khoản chi schema 7 → 8.
 - `auth_smoke.py`: chưa đăng nhập, mật khẩu sai, bắt buộc đổi mật khẩu, quyền theo phân hệ,
-  logout, mật khẩu cũ sau đổi, tài khoản bị khóa và session đang tồn tại.
+  logout; đổi mật khẩu giữ phiên hiện tại nhưng thu hồi phiên khác; quản trị đặt lại mật khẩu
+  hoặc khóa tài khoản sẽ thu hồi toàn bộ phiên của tài khoản trong đúng studio.
 - `finance_smoke.py`: tổng thu/chi/lợi nhuận; sửa không hợp lệ không đổi dữ liệu;
   bộ lọc, ảnh/chú thích, giới hạn 5 MB/6 ảnh; API ảnh có xác thực; nội dung XLSX,
   xuất hợp đồng và đổi tên studio.
@@ -27,6 +28,14 @@ python3 tests/run_backend.py
   sửa không hợp lệ không đổi tên, album bị ngừng chia sẻ/xóa gỡ ảnh khỏi gallery.
 - xUnit `ConceptShowcaseTests`: tương thích concept cũ, dữ liệu public tối thiểu, ẩn ảnh khi
   nguồn bị khóa/xóa/bảo trì và kiểm tra điều kiện công khai.
+- xUnit `SaasTests`: import SQLite, global filters, SaveChangesAsync và payload chéo tenant,
+  rollback, thứ tự collection, slot user, reset tháng Việt Nam/hết hạn, ba mode resolver,
+  giá tháng/năm, webhook idempotency, HMAC raw body/timestamp và SQL migration PostgreSQL.
+- `saas_smoke.py`: CLI tạo studio Free độc lập, cookie/session và dữ liệu không xuyên tenant,
+  xác thực email, gửi lại token một lần, quên/reset mật khẩu và thu hồi phiên;
+  routing path/subdomain, host lạ, feature gates, quota 5 album/retry, Settings và webhook
+  sai auth/sai số tiền/replay, kích hoạt AlbumPro rồi Solo. Dùng ngân hàng/khóa test giả lập,
+  không gọi API thanh toán thật và không gửi email.
 - `storage_s3_smoke.py`: upload logo/ảnh đăng nhập/ảnh trang chủ đến S3 giả lập; kiểm tra chữ ký SigV4,
   payload không chunked, lỗi nhà cung cấp được chuyển thông báo an toàn và giữ ảnh cũ khi lỗi.
 
@@ -38,8 +47,9 @@ Không chạy các smoke script trực tiếp với dữ liệu studio thật: c
 
 CI `.github/workflows/backend.yml` chạy restore, build, xUnit, runner API/S3, preview seed smoke và publish;
 lưu kết quả xUnit dạng TRX. CI không deploy và không dùng secrets bên ngoài.
-Chưa bao phủ PostgreSQL thật, Drive thật, browser, toàn bộ CRM/sales/payroll và lỗi ghi/rollback.
-Các rủi ro authentication legacy và session đã nêu ở README chưa được sửa trong nhiệm vụ này.
+Chưa bao phủ PostgreSQL thật, Drive thật, browser trong CI và toàn bộ CRM/sales/payroll.
+Rollback SQLite đã được kiểm tra; concurrency PostgreSQL nhiều process chưa được kiểm tra.
+Các giới hạn authentication legacy/session và tích hợp SaaS xem README và docs/SAAS-COMMERCIAL.md.
 
 ## Giao diện: chạy riêng, chưa nằm trong CI backend
 

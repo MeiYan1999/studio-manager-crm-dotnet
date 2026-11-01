@@ -47,7 +47,10 @@ export async function api(path, options = {}) {
     const message = payload && typeof payload === 'object'
       ? payload.error || 'Yêu cầu chưa thực hiện được.'
       : 'Yêu cầu chưa thực hiện được.';
-    throw new ApiError(message, response.status, payload?.code);
+    const error = new ApiError(message, response.status, payload?.code);
+    error.feature = payload?.feature;
+    error.requiredPlan = payload?.requiredPlan;
+    throw error;
   }
 
   return payload;

@@ -2,6 +2,7 @@
 body.page-landing {
   background: #fff;
 }
+.page-landing .landing-main{display:flex;flex-direction:column}
 
 .page-landing .landing {
   background: #fff;

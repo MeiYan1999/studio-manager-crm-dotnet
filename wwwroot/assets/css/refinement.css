@@ -133,6 +133,16 @@ body.page-admin .admin-nav__item.is-active {
   font-weight: 600;
 }
 
+body.page-admin .admin-nav__plan {
+  margin-left: auto;
+  padding: 2px 5px;
+  border-radius: 4px;
+  background: #e6ecee;
+  color: #42565d;
+  font-size: 10px;
+  font-weight: 700;
+}
+
 body.page-admin .admin-nav__icon,
 body.page-admin .admin-nav__item.is-active .admin-nav__icon {
   color: var(--clay);

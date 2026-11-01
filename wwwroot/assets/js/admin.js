@@ -1,3 +1,4 @@
+import { mountSaasSettings, loadSaasIdentity } from './saas.js';
 import { api, authApi, crmApi, salesApi, operationsApi, settingsApi } from './api.js';
 import {
   icon,
@@ -150,7 +151,8 @@ const NAV_GROUPS = [
     label: 'Bảng điều khiển',
     items: [
       { key: 'dashboard', label: 'Tổng quan', href: '/admin', iconName: 'home', permission: 'dashboard' },
-      { key: 'board', label: 'Bảng công việc', href: '/admin/board', iconName: 'board', permission: 'board' }
+      { key: 'board', label: 'Bảng công việc', href: '/admin/board', iconName: 'board', permission: 'board' },
+      { key: 'notifications', label: 'Thông báo', href: '/admin/notifications', iconName: 'bell', permission: 'notifications' }
     ]
   },
   {
@@ -162,31 +164,36 @@ const NAV_GROUPS = [
     ]
   },
   {
-    label: 'Khách hàng & lịch chụp',
+    label: 'Khách hàng & bán hàng',
     items: [
-      { key: 'customers', label: 'Khách hàng', href: '/admin/customers', iconName: 'users', permission: 'customers' },
-      { key: 'bookings', label: 'Lịch chụp', href: '/admin/bookings', iconName: 'calendar', permission: 'bookings' },
+      { key: 'customers', label: 'Khách hàng', href: '/admin/customers', iconName: 'users', permission: 'customers', feature: 'Crm', plan: 'SOLO' },
+      { key: 'bookings', label: 'Lịch chụp', href: '/admin/bookings', iconName: 'calendar', permission: 'bookings', feature: 'Crm', plan: 'SOLO' },
       { key: 'packages', label: 'Gói Chụp', href: '/admin/packages', iconName: 'tag', permission: 'packages' },
-      { key: 'staff', label: 'Nhân sự', href: '/admin/staff', iconName: 'camera', permission: 'staff' }
+      { key: 'orders', label: 'Đơn hàng', href: '/admin/orders', iconName: 'receipt', permission: 'orders', feature: 'Crm', plan: 'SOLO' },
+      { key: 'contracts', label: 'Hợp đồng', href: '/admin/contracts', iconName: 'file', permission: 'contracts', feature: 'Crm', plan: 'SOLO' }
     ]
   },
   {
-    label: 'Kinh doanh',
+    label: 'Nhân sự & vận hành',
     items: [
-      { key: 'orders', label: 'Đơn hàng', href: '/admin/orders', iconName: 'receipt', permission: 'orders' },
-      { key: 'contracts', label: 'Hợp đồng', href: '/admin/contracts', iconName: 'file', permission: 'contracts' },
-      { key: 'reports', label: 'Báo cáo', href: '/admin/reports', iconName: 'chart', permission: 'reports' }
+      { key: 'staff', label: 'Nhân sự', href: '/admin/staff', iconName: 'camera', permission: 'staff', feature: 'Crm', plan: 'SOLO' },
+      { key: 'shifts', label: 'Chia ca làm việc', href: '/admin/shifts', iconName: 'calendar', permission: 'attendance', feature: 'CrewAssignment', plan: 'STUDIO' },
+      { key: 'attendance', label: 'Chấm công', href: '/admin/attendance', iconName: 'clock', permission: 'attendance', feature: 'CrewAssignment', plan: 'STUDIO' },
+      { key: 'wardrobe', label: 'Tủ trang phục', href: '/admin/wardrobe', iconName: 'tag', permission: 'wardrobe' }
     ]
   },
   {
-    label: 'Vận hành studio',
+    label: 'Tài chính',
     items: [
-      { key: 'finance', label: 'Tài chính & lương', href: '/admin/finance', iconName: 'wallet', permission: 'finance' },
-      { key: 'shifts', label: 'Chia ca làm việc', href: '/admin/shifts', iconName: 'calendar', permission: 'attendance' },
-      { key: 'attendance', label: 'Chấm công', href: '/admin/attendance', iconName: 'clock', permission: 'attendance' },
-      { key: 'wardrobe', label: 'Tủ trang phục', href: '/admin/wardrobe', iconName: 'tag', permission: 'wardrobe' },
-      { key: 'website-concepts', label: 'Bộ ảnh website', href: '/admin/website-concepts', iconName: 'albums', permission: 'wardrobe', adminOnly: true },
-      { key: 'notifications', label: 'Thông báo', href: '/admin/notifications', iconName: 'bell', permission: 'notifications' }
+      { key: 'finance', label: 'Tài chính & lương', href: '/admin/finance', iconName: 'wallet', permission: 'finance', feature: 'Cashbook', plan: 'SOLO' },
+      { key: 'reports', label: 'Báo cáo', href: '/admin/reports', iconName: 'chart', permission: 'reports', feature: 'Crm', plan: 'SOLO' }
+    ]
+  },
+  {
+    label: 'Website studio',
+    items: [
+      { key: 'website-designer', label: 'Thiết kế website', href: '/admin/website', iconName: 'palette', permission: 'settings', adminOnly: true },
+      { key: 'website-concepts', label: 'Bộ ảnh website', href: '/admin/website-concepts', iconName: 'albums', permission: 'wardrobe', adminOnly: true }
     ]
   },
   {
@@ -212,7 +219,7 @@ export function adminShell({ active, session, content, topbarAction = '' }) {
     return `
       <p class="admin-nav__label">${escapeHtml(group.label)}</p>
       ${items.map(item => `
-        <a class="admin-nav__item ${active === item.key ? 'is-active' : ''}" href="${item.href}" ${active === item.key ? 'aria-current="page"' : ''}>
+        <a class="admin-nav__item ${active === item.key ? 'is-active' : ''}" href="${item.href}" ${item.feature ? `data-plan-feature="${item.feature}" data-plan-label="${item.plan}"` : ''} ${active === item.key ? 'aria-current="page"' : ''}>
           <span class="admin-nav__icon">${icon(item.iconName)}</span>
           <span>${escapeHtml(item.label)}</span>
         </a>
@@ -228,6 +235,7 @@ export function adminShell({ active, session, content, topbarAction = '' }) {
           <a class="wordmark" href="/admin">${escapeHtml(studioName)}</a>
           <button class="icon-btn admin-sidebar__close" type="button" data-sidebar-close aria-label="Đóng menu">${icon('x')}</button>
         </div>
+        <div class="saas-sidebar-status" data-saas-sidebar><span class="saas-badge">…</span></div>
         ${canCreateAlbum ? `<a class="btn btn--primary admin-sidebar__create" href="/admin/create">${icon('plus')} Tạo album mới</a>` : ''}
         <nav class="admin-nav">
           ${nav}
@@ -239,6 +247,7 @@ export function adminShell({ active, session, content, topbarAction = '' }) {
             <a href="/a/demo-ngay-chung-doi" target="_blank" rel="noopener">Mở album mẫu ${icon('arrowUpRight')}</a>
           </div>
         ` : ''}
+        <a class="admin-nav__item" href="/admin/settings#domains">${icon('link')} Cài Đặt Tên Miền</a>
         <div class="admin-sidebar__foot">
           <a class="admin-account" href="${isAdmin ? '/admin/settings' : '/admin/change-password'}" aria-label="${isAdmin ? 'Cài đặt tài khoản studio' : 'Đổi mật khẩu'}">
             <span class="avatar ${isAdmin ? 'avatar--ink' : 'avatar--olive'}">${escapeHtml(initials(displayName))}</span>
@@ -267,6 +276,8 @@ export function adminShell({ active, session, content, topbarAction = '' }) {
 }
 
 export function mountAdminShell(root, session) {
+  loadSaasIdentity(root);
+  let upgradeModal;
   document.body.classList.remove('sidebar-open');
   const open = () => document.body.classList.add('sidebar-open');
   const close = () => document.body.classList.remove('sidebar-open');
@@ -274,6 +285,29 @@ export function mountAdminShell(root, session) {
   const openButton = root.querySelector('[data-sidebar-open]');
   openButton?.addEventListener('click', open);
   root.querySelectorAll('[data-sidebar-close]').forEach(item => item.addEventListener('click', close));
+
+  const onLockedNavigation = event => {
+    const link = event.target.closest('[data-plan-locked="true"]');
+    if (!link || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+    event.preventDefault();
+    const title = link.querySelector('span:nth-child(2)')?.textContent?.trim() || 'Tính năng này';
+    const plan = link.dataset.planLabel || '';
+    const canUpgrade = session?.user?.role === 'admin';
+    upgradeModal?.close();
+    upgradeModal = createModal(`
+      <div class="dialog-card dialog-card--confirm">
+        <button class="dialog-close" type="button" data-close-dialog aria-label="Đóng">${icon('x')}</button>
+        <h2>${escapeHtml(title)} cần gói ${escapeHtml(plan)}</h2>
+        <p class="dialog-copy">${canUpgrade ? 'Nâng cấp gói dịch vụ để sử dụng tính năng này cho studio.' : 'Liên hệ quản trị viên studio để xem các lựa chọn nâng cấp.'}</p>
+        <div class="dialog-actions"><button class="btn btn--ghost" type="button" data-close-dialog>Để sau</button>${canUpgrade ? '<button class="btn btn--primary" type="button" data-view-plans>Xem gói dịch vụ</button>' : ''}</div>
+      </div>`, { className: 'dialog--sm' });
+    upgradeModal.dialog.querySelector('[data-view-plans]')?.addEventListener('click', () => {
+      upgradeModal.close();
+      close();
+      navigateTo('/admin/settings#domains');
+    });
+  };
+  root.addEventListener('click', onLockedNavigation);
 
   const onLogout = async () => {
     const button = root.querySelector('[data-action="logout"]');
@@ -292,6 +326,8 @@ export function mountAdminShell(root, session) {
   root.querySelector('[data-action="logout"]')?.addEventListener('click', onLogout);
 
   return () => {
+    root.removeEventListener('click', onLockedNavigation);
+    upgradeModal?.close();
     close();
     document.body.classList.remove('sidebar-open');
   };
@@ -346,6 +382,10 @@ export function loginView({ session, websiteSettings = {} }) {
           <p class="login-card__lead">Đăng nhập bằng tài khoản riêng để mở bảng điều khiển và tiếp tục chăm sóc những album của bạn.</p>
 
           <form class="login-form" data-login-form novalidate>
+            ${new URLSearchParams(location.search).get('registered') === '1'
+              ? new URLSearchParams(location.search).get('emailSent') === '0'
+                ? `<div class="alert alert--warning">Studio đã được tạo nhưng email chưa gửi được. <a href="/admin/verify-email?identifier=${encodeURIComponent(new URLSearchParams(location.search).get('identifier') || '')}">Gửi lại email xác thực</a>.</div>`
+                : `<div class="alert alert--success">Studio đã được tạo. Hãy kiểm tra email và xác thực tài khoản trước khi đăng nhập.</div>` : ''}
             <div class="field">
               <label for="login-username">Tên đăng nhập</label>
               <div class="input-with-icon">
@@ -365,6 +405,7 @@ export function loginView({ session, websiteSettings = {} }) {
             <button class="btn btn--primary btn--lg btn--full" type="submit" data-login-submit>
               Vào studio ${icon('arrowRight')}
             </button>
+            <a class="btn btn--text btn--full" href="/admin/forgot-password">Quên mật khẩu?</a>
           </form>
 
           <div class="login-card__foot">
@@ -425,6 +466,9 @@ export function loginView({ session, websiteSettings = {} }) {
         } catch (error) {
           setButtonLoading(submit, false);
           errorRoot.innerHTML = errorBlock(error.message || 'Không thể đăng nhập.', error.code);
+          if (error.code === 'email_not_verified') {
+            errorRoot.insertAdjacentHTML('beforeend', `<a class="btn btn--text btn--full" href="/admin/verify-email?identifier=${encodeURIComponent(username)}">Gửi lại email xác thực</a>`);
+          }
           passwordInput.select();
         }
       });
@@ -3281,6 +3325,7 @@ export function settingsView({ session }) {
 
   let teardown = () => {};
   let disposed = false;
+  let saasTeardown = () => {};
 
   return {
     title: 'Cài đặt',
@@ -3295,7 +3340,9 @@ export function settingsView({ session }) {
       let staff = [];
 
       const paint = () => {
+        saasTeardown();
         holder.innerHTML = renderSettings(settings, users, session, staff);
+        saasTeardown = mountSaasSettings(holder);
       };
 
       const paintAccounts = () => {
@@ -3505,7 +3552,7 @@ export function settingsView({ session }) {
           const result = await api('/api/admin/settings', {
             method: 'PUT',
             body: {
-              website: Object.fromEntries(["loadingName", "loadingText", "loginName", "loginQuote", "loginTitle", "brandName", "brandLabel", "howItWorksLabel", "sampleAlbumsLabel", "forStudioLabel", "heroTitle", "heroDescription", "footerDescription", "footerPrivacy"].map(name => [name, form.elements.namedItem(name).value.trim()])),
+              website: { ...settings.website, ...Object.fromEntries(["loadingName", "loadingText", "loginName", "loginQuote", "loginTitle", "brandName", "brandLabel", "howItWorksLabel", "sampleAlbumsLabel", "forStudioLabel", "heroTitle", "heroDescription", "footerDescription", "footerPrivacy"].map(name => [name, form.elements.namedItem(name).value.trim()])) },
               studioName: studioName.value.trim(),
               contactEmail: contactEmail.value.trim(),
               googleApiKey: apiKey.value.trim() || null,
@@ -3606,6 +3653,7 @@ export function settingsView({ session }) {
     },
     cleanup() {
       disposed = true;
+      saasTeardown();
       teardown();
     }
   };
@@ -3949,6 +3997,8 @@ function openUserForm({ user = null, session, onSaved, staff = [] }) {
   const isSelf = Boolean(user?.isCurrent || (user && user.id === session?.user?.id));
   const roleOptions = [
     ['employee', 'Nhân viên'],
+    ['manager', 'Manager'],
+    ['sale', 'Sale'],
     ['admin', 'Quản trị viên']
   ].map(([value, label]) =>
     `<option value="${value}" ${((user?.role || 'employee') === value) ? 'selected' : ''}>${label}</option>`

@@ -1,13 +1,15 @@
 namespace StudioCore.Models;
-public sealed class PriceGroup
+public sealed class PriceGroup : IMustHaveTenant
 {
+    public string TenantId { get; set; } = "";
     public string Id { get; set; } = "";
     public string Title { get; set; } = "";
     public string Description { get; set; } = "";
     public List<PriceItem> Items { get; set; } = [];
 }
-public sealed class PriceItem
+public sealed class PriceItem : IMustHaveTenant
 {
+    public string TenantId { get; set; } = "";
     public string Id { get; set; } = "";
     public string Name { get; set; } = "";
     public string Subtitle { get; set; } = "";

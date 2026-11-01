@@ -1,3 +1,4 @@
+import { mountQuickLocations } from './quick-locations.js';
 import { mountPriceEditor } from './prices.js';
 import { api, crmApi } from './api.js';
 import { adminShell, mountAdminShell, pageHead, hasPermission } from './admin.js';
@@ -1684,6 +1685,7 @@ export function bookingsView({ session }) {
     `, { className: 'dialog--crm dialog--wide' });
 
     const form = modal.dialog.querySelector('[data-booking-form]');
+    mountQuickLocations(form, '[name=location]');
     const packageField = form.elements.namedItem('packageId');
     const priceField = form.elements.namedItem('price');
     const hoursField = form.elements.namedItem('hours');

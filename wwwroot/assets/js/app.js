@@ -1,3 +1,5 @@
+import { acceptInvitationView, verifyEmailView, forgotPasswordView, resetPasswordView } from './saas.js';
+import { tenantPath, localPath } from './tenant.js';
 import { mountPrices } from './prices.js';
 import { mountConceptCards, conceptGalleryView } from './concepts.js';
 import { api, authApi } from './api.js';
@@ -30,6 +32,8 @@ import { financeView, attendanceView, shiftsView, wardrobeView, notificationsVie
 import { boardView } from './board.js';
 import { photoFilterView } from './tools.js?v=20261030-photo-copy';
 import { publicAlbumView, notFoundAlbumView } from './album.js';
+import { platformView } from './platform.js';
+import { websiteDesignerView } from './website-designer.js';
 
 const APP_TITLE = 'StudioCore';
 let websiteSettings = { studioName: 'StudioCore', website: {} };
@@ -50,9 +54,13 @@ function normalizePath(pathname) {
 }
 
 function parseRoute(pathname) {
-  const path = normalizePath(pathname);
+  const path = normalizePath(localPath(pathname));
 
   if (path === '/') return { name: 'home', path };
+  if (path === '/admin/accept-invite') return { name:'accept-invite', path };
+  if (path === '/admin/verify-email') return { name:'verify-email', path };
+  if (path === '/admin/forgot-password') return { name:'forgot-password', path };
+  if (path === '/admin/reset-password') return { name:'reset-password', path };
   if (path === '/admin/login') return { name: 'login', path };
   if (path === '/admin' || path === '/admin/dashboard') return { name: 'dashboard', path: '/admin' };
   if (path === '/admin/albums') return { name: 'albums', path };
@@ -74,6 +82,7 @@ function parseRoute(pathname) {
   if (path === '/admin/notifications') return { name: 'notifications', path };
   if (path === '/admin/audit') return { name: 'audit', path };
   if (path === '/admin/settings') return { name: 'settings', path };
+  if (path === '/admin/website') return { name: 'website-designer', path };
   if (path === '/admin/change-password') return { name: 'change-password', path };
 
   const albumMatch = /^\/admin\/albums\/([^/]+)$/.exec(path);
@@ -113,7 +122,8 @@ const ROUTE_PERMISSIONS = {
   'website-concepts': 'wardrobe',
   notifications: 'notifications',
   audit: 'audit',
-  settings: 'settings'
+  settings: 'settings',
+  'website-designer': 'settings'
 };
 
 const PERMISSION_ROUTES = [
@@ -210,7 +220,7 @@ async function render(route) {
 
   const requiredPermission = ROUTE_PERMISSIONS[route.name];
   const denied = Boolean(requiredPermission) && !hasPermission(session, requiredPermission) ||
-    (route.name === 'settings' && session.user?.role !== 'admin');
+    ((route.name === 'settings' || route.name === 'website-designer') && session.user?.role !== 'admin');
 
   let view;
   try {
@@ -260,8 +270,12 @@ async function render(route) {
 function buildView(route) {
   const context = { session: { ...session }, route };
   switch (route.name) {
+    case 'accept-invite': return acceptInvitationView();
+    case 'verify-email': return verifyEmailView();
+    case 'forgot-password': return forgotPasswordView();
+    case 'reset-password': return resetPasswordView();
     case 'home':
-      return landingView(context);
+      return websiteSettings.isPlatformHost ? platformView() : landingView(context);
     case 'concept-gallery':
       return conceptGalleryView({ category: route.params.category, brand: landingBrand(), studioName: websiteSettings.studioName });
     case 'login':
@@ -308,6 +322,8 @@ function buildView(route) {
       return auditView(context);
     case 'settings':
       return settingsView(context);
+    case 'website-designer':
+      return websiteDesignerView(context);
     case 'change-password':
       return changePasswordView(context);
     case 'public-album':
@@ -320,7 +336,7 @@ function buildView(route) {
 }
 
 function navigate(path, options = {}) {
-  const target = new URL(path, location.origin);
+  const target = new URL(tenantPath(path), location.origin);
   const nextPath = target.pathname + target.search + target.hash;
   if (options.replace) {
     history.replaceState({}, '', nextPath);
@@ -340,6 +356,10 @@ function landingView() {
   const text = (key, fallback) => escapeHtml(content[key] ?? fallback);
   const brand = landingBrand();
   const conceptLabel = !content.sampleAlbumsLabel || content.sampleAlbumsLabel === 'Album mẫu' ? 'Concept' : text('sampleAlbumsLabel', 'Concept');
+  const sectionDefaults = ['hero', 'highlights', 'howItWorks', 'pricing', 'concepts', 'studio'];
+  const sectionOrder = Array.isArray(content.sectionOrder) ? content.sectionOrder : sectionDefaults;
+  const sectionStyle = key => `order:${Math.max(0, sectionOrder.indexOf(key)) + 1}`;
+  const sectionVisible = key => content[`show${key[0].toUpperCase()}${key.slice(1)}`] !== false;
   let disposeConcepts = () => {};
   let disposePrices = () => {};
   const html = `
@@ -347,10 +367,10 @@ function landingView() {
       <header class="site-nav">
         ${brand}
         <nav class="site-nav__links" aria-label="Điều hướng chính">
-          <a href="#cach-hoat-dong">${text('howItWorksLabel', 'Cách hoạt động')}</a>
-          <a href="#concepts">${conceptLabel}</a>
-          <a href="#bang-gia">Bảng giá</a>
-          <a href="#danh-cho-studio">${text('forStudioLabel', 'Dành cho studio')}</a>
+          ${sectionVisible('howItWorks') ? `<a href="#cach-hoat-dong">${text('howItWorksLabel', 'Cách hoạt động')}</a>` : ''}
+          ${sectionVisible('concepts') ? `<a href="#concepts">${conceptLabel}</a>` : ''}
+          ${sectionVisible('pricing') ? '<a href="#bang-gia">Bảng giá</a>' : ''}
+          ${sectionVisible('studio') ? `<a href="#danh-cho-studio">${text('forStudioLabel', 'Dành cho studio')}</a>` : ''}
         </nav>
         <div class="site-nav__actions">
           <a class="btn btn--ghost btn--compact" href="/admin/login">${icon('lock')} Studio</a>
@@ -366,8 +386,8 @@ function landingView() {
         <a href="/admin/login">Đăng nhập studio</a>
       </div>
 
-      <main>
-        <section class="landing-hero" aria-labelledby="landing-title">
+      <main class="landing-main">
+        <section class="landing-hero" aria-labelledby="landing-title" style="${sectionStyle('hero')}" ${sectionVisible('hero') ? '' : 'hidden'}>
           <figure class="landing-hero__visual">
             <img class="landing-hero__image" src="${escapeAttr(websiteSettings.homeImageUrl || '/assets/img/demo/12.jpg')}"
                  alt="Ảnh giới thiệu của ${escapeAttr(websiteSettings.studioName || 'StudioCore')}" width="1600" height="1067"
@@ -375,9 +395,9 @@ function landingView() {
             <figcaption class="landing-hero__caption">
               <div>
                 <span class="landing-hero__studio">${escapeHtml(websiteSettings.studioName || 'StudioCore')}</span>
-                <span class="landing-hero__moment">Lưu giữ những điều thương mến.</span>
+                <span class="landing-hero__moment">${text('heroTagline', 'Lưu giữ những điều thương mến.')}</span>
               </div>
-              <a class="landing-hero__explore" href="#concepts">Khám phá concept ${icon('arrowDown')}</a>
+              <a class="landing-hero__explore" href="${escapeAttr(content.heroCtaUrl || '#concepts')}">${text('heroCtaLabel', 'Khám phá concept')} ${icon('arrowDown')}</a>
             </figcaption>
           </figure>
           <div class="landing-hero__copy">
@@ -387,20 +407,20 @@ function landingView() {
               ${text('heroDescription', 'StudioCore gom những ngày đẹp nhất vào một album riêng. Bạn chỉ cần mở liên kết, thả tim những tấm ảnh mình yêu và gửi lại cho studio.')}
             </p>
             <div class="landing-hero__actions">
-              <a class="btn btn--primary btn--lg" href="#concepts">Khám phá concept ${icon('arrowRight')}</a>
+              <a class="btn btn--primary btn--lg" href="${escapeAttr(content.heroCtaUrl || '#concepts')}">${text('heroCtaLabel', 'Khám phá concept')} ${icon('arrowRight')}</a>
               <a class="btn btn--text btn--lg" href="#cach-hoat-dong">Tìm hiểu cách hoạt động ${icon('arrowUpRight')}</a>
             </div>
           </div>
         </section>
 
-        <section class="landing-strip" aria-label="Điểm nổi bật">
+        <section class="landing-strip" aria-label="Điểm nổi bật" style="${sectionStyle('highlights')}" ${sectionVisible('highlights') ? '' : 'hidden'}>
           <span>${icon('camera')} Ảnh gốc chất lượng cao</span>
           <span>${icon('lock')} Liên kết riêng tư</span>
           <span>${icon('heart')} Chọn ảnh bằng một cái chạm</span>
           <span>${icon('download')} Tải về khi được bật</span>
         </section>
 
-        <section class="landing-section landing-steps" id="cach-hoat-dong">
+        <section class="landing-section landing-steps" id="cach-hoat-dong" style="${sectionStyle('howItWorks')}" ${sectionVisible('howItWorks') ? '' : 'hidden'}>
           <div class="section-heading">
             <p class="eyebrow">Một quy trình thật nhẹ</p>
             <h2>Từ Drive đến tay bạn,<br><em>chỉ trong vài bước.</em></h2>
@@ -428,15 +448,15 @@ function landingView() {
           </div>
         </section>
 
-        <section class="price-section" id="bang-gia"><div class="price-inner"><header class="price-heading"><p class="eyebrow">Dịch vụ studio</p><h2>Bảng giá</h2><p>Chọn gói chụp phù hợp với những khoảnh khắc của bạn.</p></header><div data-price-catalog aria-live="polite">Đang tải bảng giá…</div></div></section>
+        <section class="price-section" id="bang-gia" style="${sectionStyle('pricing')}" ${sectionVisible('pricing') ? '' : 'hidden'}><div class="price-inner"><header class="price-heading"><p class="eyebrow">Dịch vụ studio</p><h2>Bảng giá</h2><p>Chọn gói chụp phù hợp với những khoảnh khắc của bạn.</p></header><div data-price-catalog aria-live="polite">Đang tải bảng giá…</div></div></section>
 
-        <section class="landing-section concept-section" id="concepts">
+        <section class="landing-section concept-section" id="concepts" style="${sectionStyle('concepts')}" ${sectionVisible('concepts') ? '' : 'hidden'}>
           <span id="album-mau" class="concept-anchor" aria-hidden="true"></span>
           <div class="concept-section__heading"><p class="eyebrow">Khám phá concept</p><h2>5 lựa chọn<br><em>Cho những khoảnh khắc bạn muốn lưu giữ</em></h2></div>
           <div class="concept-grid" data-concept-grid aria-live="polite"><p role="status">Đang tải concept…</p></div>
         </section>
 
-        <section class="landing-studio" id="danh-cho-studio">
+        <section class="landing-studio" id="danh-cho-studio" style="${sectionStyle('studio')}" ${sectionVisible('studio') ? '' : 'hidden'}>
           <div class="landing-studio__inner">
             <div>
               <p class="eyebrow eyebrow--light">${text('forStudioLabel', 'Dành cho studio')}</p>

@@ -84,7 +84,7 @@ internal static class ApiMappings
             album.SubmittedAt,
             album.ClientNote,
             album.Photos.Select(photo => ToPublicPhoto(photo, album, selectedAt)).ToList(),
-            selected.OrderBy(id => id, StringComparer.Ordinal).ToList());
+            selected.OrderBy(id => id, StringComparer.Ordinal).ToList()) { Greeting = settings.Greeting, ShareMessage = settings.ShareMessage };
     }
 
     public static DrivePreviewDto ToDrivePreview(DriveFolderResult folder)
@@ -581,7 +581,7 @@ internal static class ApiMappings
                 .ToList(),
             contract.Terms,
             contract.CreatedAt,
-            contract.UpdatedAt);
+            contract.UpdatedAt) { Location = contract.Location };
     }
 
     public static InvoiceDto ToInvoice(Order order, AppData data)

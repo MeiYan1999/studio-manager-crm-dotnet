@@ -10,7 +10,8 @@ public static class AdminEndpoints
     public static void Map(WebApplication app)
     {
         var group = app.MapGroup("/api/admin")
-            .AddEndpointFilter<AdminOnlyFilter>();
+            .AddEndpointFilter<AdminOnlyFilter>()
+            .AddEndpointFilter<SubscriptionGuardFilter>();
         var albums = new StudioPermissionFilter(StudioPermissions.Albums);
 
         group.MapGet("/albums", GetAlbums).AddEndpointFilter(albums);
@@ -628,7 +629,7 @@ public static class AdminEndpoints
 
             if (user.Role == "admin" &&
                 user.IsActive &&
-                (string.Equals(role, "employee", StringComparison.Ordinal) || request.IsActive is false) &&
+                ((role is not null && role != "admin") || request.IsActive is false) &&
                 data.Users.Count(candidate => candidate.IsActive && candidate.Role == "admin") <= 1)
             {
                 throw new ApiException(
@@ -714,6 +715,7 @@ public static class AdminEndpoints
             return ApiMappings.ToStudioUser(user, current.Id);
         });
 
+        if (request.IsActive is false) sessions.RevokeUserSessions(context, id);
         return Results.Ok(dto);
     }
 
@@ -743,6 +745,7 @@ public static class AdminEndpoints
                 [isSelf ? "Tự đặt lại mật khẩu" : "Buộc đổi mật khẩu ở lần đăng nhập tới"]);
         });
 
+        sessions.RevokeUserSessions(context, id);
         return Results.NoContent();
     }
 
@@ -853,6 +856,13 @@ public static class AdminEndpoints
             request.Website.HeroDescription = request.Website.HeroDescription?.Trim() ?? "";
             if (request.Website.HeroDescription.Length > 1200)
                 throw new ApiException(400, "Nội dung đoạn giới thiệu trang chủ quá dài (tối đa 1200 ký tự).", "invalid_website_content");
+            request.Website.HeroTagline = AlbumText.TrimTo(request.Website.HeroTagline, 160);
+            request.Website.HeroCtaLabel = AlbumText.TrimTo(request.Website.HeroCtaLabel, 60);
+            request.Website.HeroCtaUrl = AlbumText.TrimTo(request.Website.HeroCtaUrl, 500);
+            var allowedSections = new HashSet<string>(["hero", "highlights", "howItWorks", "pricing", "concepts", "studio"], StringComparer.Ordinal);
+            request.Website.SectionOrder = (request.Website.SectionOrder ?? [])
+                .Where(allowedSections.Contains).Distinct(StringComparer.Ordinal).ToList();
+            request.Website.SectionOrder.AddRange(allowedSections.Where(section => !request.Website.SectionOrder.Contains(section, StringComparer.Ordinal)));
             request.Website.FooterDescription = request.Website.FooterDescription?.Trim() ?? "";
             if (request.Website.FooterDescription.Length > 600)
                 throw new ApiException(400, "Nội dung giới thiệu ở chân trang quá dài (tối đa 600 ký tự).", "invalid_website_content");
@@ -1124,7 +1134,7 @@ public static class AdminEndpoints
     private static string NormalizeRoleOrThrow(string? value)
     {
         var role = (value ?? "").Trim().ToLowerInvariant();
-        if (role is not ("admin" or "employee"))
+        if (role is not ("admin" or "employee" or "manager" or "sale"))
         {
             throw new ApiException(400, "Vai trò tài khoản không hợp lệ.", "invalid_role");
         }

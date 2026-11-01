@@ -5,6 +5,7 @@ using System.Globalization;
 using StudioCore.Models;
 using Npgsql;
 using NpgsqlTypes;
+using StudioCore.Persistence;
 
 namespace StudioCore.Services;
 
@@ -27,10 +28,12 @@ public sealed class DataStore
     private readonly string _configuredGoogleApiKey;
     private readonly ILogger<DataStore> _logger;
     private AppData _data;
+    private readonly SaasDatabase? _saas;
 
-    public DataStore(IWebHostEnvironment environment, IConfiguration configuration, ILogger<DataStore> logger)
+    public DataStore(IWebHostEnvironment environment, IConfiguration configuration, ILogger<DataStore> logger, SaasDatabase? saas = null)
     {
         _logger = logger;
+        _saas = saas;
         AdminCode = string.IsNullOrWhiteSpace(configuration["AdminCode"])
             ? "studio2026"
             : configuration["AdminCode"]!.Trim();
@@ -90,7 +93,7 @@ public sealed class DataStore
 
         var migrated = Migrate(_data, AdminCode);
         Normalize(_data, AdminCode);
-        if (!persisted || migrated)
+        if (_saas is null && (!persisted || migrated))
         {
             SaveLocked();
             _logger.LogInformation(
@@ -101,12 +104,17 @@ public sealed class DataStore
         }
     }
 
+    public void InitializeSaas() => _saas?.Initialize(_data);
+
+    public SaasDatabase? Saas => _saas;
+
     public string StorePath => _storePath;
     public string DataDirectory => Path.GetDirectoryName(_storePath) ?? AppContext.BaseDirectory;
     public string AdminCode { get; }
 
     public T Read<T>(Func<AppData, T> reader)
     {
+        if (_saas is not null) return _saas.Read(reader);
         lock (_sync)
         {
             return reader(_data);
@@ -119,6 +127,7 @@ public sealed class DataStore
     /// </summary>
     public T ReadClone<T>(Func<AppData, T> reader)
     {
+        if (_saas is not null) return _saas.Read(reader);
         lock (_sync)
         {
             var json = JsonSerializer.Serialize(_data, JsonOptions);
@@ -130,6 +139,7 @@ public sealed class DataStore
 
     public T Write<T>(Func<AppData, T> writer)
     {
+        if (_saas is not null) return _saas.Write(writer);
         lock (_sync)
         {
             var result = writer(_data);
@@ -149,6 +159,8 @@ public sealed class DataStore
 
     public string GetEffectiveGoogleApiKey()
     {
+        if (_saas is not null) return Read(data => string.IsNullOrWhiteSpace(data.Settings.GoogleApiKey)
+            ? _configuredGoogleApiKey : data.Settings.GoogleApiKey.Trim());
         lock (_sync)
         {
             return string.IsNullOrWhiteSpace(_data.Settings.GoogleApiKey)
@@ -207,7 +219,7 @@ public sealed class DataStore
         return command.ExecuteScalar() as string;
     }
 
-    private static string NormalizePostgresConnectionString(string value)
+    internal static string NormalizePostgresConnectionString(string value)
     {
         value = value.Trim();
         if (!value.StartsWith("postgres://", StringComparison.OrdinalIgnoreCase) &&
@@ -1672,9 +1684,7 @@ public sealed class DataStore
                 user.DisplayName = user.Username;
             }
 
-            user.Role = string.Equals(user.Role, "admin", StringComparison.OrdinalIgnoreCase)
-                ? "admin"
-                : "employee";
+            user.Role = new[] { "admin", "manager", "sale", "employee" }.Contains(user.Role?.ToLowerInvariant()) ? user.Role!.ToLowerInvariant() : "employee";
             user.Permissions ??= [];
             user.Permissions = StudioPermissions.Normalize(
                 user.Permissions,

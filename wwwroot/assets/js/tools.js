@@ -853,6 +853,12 @@ export function photoFilterView({ session }) {
           }
         }
 
+        try {
+          const encoded = new TextEncoder().encode([...codes].sort().join(','));
+          const hash = [...new Uint8Array(await crypto.subtle.digest('SHA-256', encoded))].map(n => n.toString(16).padStart(2, '0')).join('');
+          await api('/api/saas/pc-filter/consume', { method: 'POST', body: { albumKey: selectedAlbum?.id || hash } });
+        } catch (error) { showToast(error.message || 'Không kiểm tra được hạn mức lọc ảnh.', 'error'); return; }
+
         running = true;
         tool.setAttribute('aria-busy', 'true');
         resultRoot.innerHTML = '';

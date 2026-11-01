@@ -10,6 +10,7 @@
   <ItemGroup>
     <!-- Static frontend is plain HTML/CSS/ES modules and does not require a build step. -->
     <Compile Remove="tests/**/*.cs" />
+    <Compile Remove="tools/**/*.cs" />
     <Content Remove="tests/**" />
     <Content Remove="tools/**" />
     <None Remove="tools/**" />
@@ -20,6 +21,9 @@
 
   <ItemGroup>
     <PackageReference Include="Npgsql" Version="8.0.6" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="8.0.22" PrivateAssets="all" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="8.0.22" />
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="8.0.11" />
   </ItemGroup>
 
 </Project>

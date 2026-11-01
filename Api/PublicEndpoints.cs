@@ -7,9 +7,18 @@ public static class PublicEndpoints
 {
     public static void Map(WebApplication app)
     {
-        app.MapGet("/api/public/website", (DataStore store) => Results.Ok(store.Read(data => new
+        app.MapGet("/api/public/plans", () => Results.Ok(Enum.GetValues<SubscriptionPlan>().Select(plan => new {
+            Key = plan.ToString(), MonthlyPrice = PlanRules.Price(plan, BillingCycle.Monthly),
+            YearlyPrice = PlanRules.Price(plan, BillingCycle.Yearly), MaxUsers = PlanRules.Users(plan),
+            MonthlyPcFilterQuota = PlanRules.FilterQuota(plan),
+            Features = Enum.GetValues<StudioFeature>().ToDictionary(feature => feature.ToString(), feature => plan >= PlanRules.Required(feature))
+        })));
+        app.MapGet("/api/public/website", (HttpContext context, DataStore store) => Results.Ok(store.Read(data => new
         {
+            IsPlatformHost = context.Items.ContainsKey("StudioCore.PlatformHost"),
             data.Settings.StudioName,
+            data.Settings.Greeting,
+            data.Settings.ShareMessage,
             data.Settings.LogoUrl,
             data.Settings.LoginImageUrl,
             data.Settings.HomeImageUrl,

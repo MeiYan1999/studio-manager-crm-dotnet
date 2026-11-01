@@ -525,7 +525,7 @@ public static class SalesEndpoints
 
             var schedule = BuildSchedule(total, preset, booking?.Date, now);
             var contractSequence = data.ContractSequence;
-            var terms = AlbumText.TrimTo(request.Terms, 8000);
+            var terms = AlbumText.TrimTo(string.IsNullOrWhiteSpace(request.Terms) ? data.Settings.ContractTemplate : request.Terms, 8000);
             if (terms.Length == 0)
             {
                 terms = BuildTerms(customer.Name, service, total, schedule.Count > 0 ? schedule[0].Amount : 0);
@@ -541,6 +541,7 @@ public static class SalesEndpoints
                 Total = total,
                 Schedule = schedule,
                 Terms = terms,
+                Location = AlbumText.TrimTo(request.Location, 160),
                 Status = status,
                 CreatedAt = now,
                 UpdatedAt = now
@@ -601,6 +602,7 @@ public static class SalesEndpoints
                 contract.Service = AlbumText.TrimTo(request.Service, 160);
             }
 
+            if (request.Location is not null) contract.Location = AlbumText.TrimTo(request.Location, 160);
             if (request.Terms is not null)
             {
                 contract.Terms = AlbumText.TrimTo(request.Terms, 8000);
