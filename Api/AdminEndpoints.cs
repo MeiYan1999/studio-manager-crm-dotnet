@@ -754,7 +754,7 @@ public static class AdminEndpoints
         return Results.Ok(BuildSettingsDto(store));
     }
 
-    private static async Task<IResult> UploadLogo(IFormFile? file, HttpContext context, DataStore store, IObjectStorage storage)
+    private static async Task<IResult> UploadLogo(IFormFile? file, HttpContext context, DataStore store, IStorageService storage)
     {
         if (file is null || file.Length == 0 || file.Length > 2 * 1024 * 1024)
             throw new ApiException(400, "Chọn ảnh logo tối đa 2 MB.", "invalid_logo");
@@ -763,14 +763,13 @@ public static class AdminEndpoints
         var bytes = memory.ToArray();
         var type = StudioImageContentType(bytes);
         if (type.Length == 0) throw new ApiException(400, "Chỉ nhận ảnh PNG, JPG hoặc WebP hợp lệ.", "invalid_logo");
-        var key = "logo-" + Guid.NewGuid().ToString("N");
         memory.Position = 0;
-        await storage.PutAsync(key, memory, type, context.RequestAborted);
+        var key = await storage.UploadAsync(StorageFolders.Images, file.FileName, memory, type, context.RequestAborted);
         store.Write(data => { data.Settings.LogoKey = key; data.Settings.LogoContentType = type; });
         return Results.Ok(BuildSettingsDto(store));
     }
 
-    private static async Task<IResult> UploadLoginImage(IFormFile? file, HttpContext context, DataStore store, IObjectStorage storage)
+    private static async Task<IResult> UploadLoginImage(IFormFile? file, HttpContext context, DataStore store, IStorageService storage)
     {
         if (file is null || file.Length == 0 || file.Length > 2 * 1024 * 1024)
             throw new ApiException(400, "Chọn ảnh đăng nhập tối đa 2 MB.", "invalid_login-image");
@@ -779,9 +778,8 @@ public static class AdminEndpoints
         var bytes = memory.ToArray();
         var type = StudioImageContentType(bytes);
         if (type.Length == 0) throw new ApiException(400, "Chỉ nhận ảnh PNG, JPG hoặc WebP hợp lệ.", "invalid_login-image");
-        var key = "login-image-" + Guid.NewGuid().ToString("N");
         memory.Position = 0;
-        await storage.PutAsync(key, memory, type, context.RequestAborted);
+        var key = await storage.UploadAsync(StorageFolders.Images, file.FileName, memory, type, context.RequestAborted);
         store.Write(data => { data.Settings.LoginImageKey = key; data.Settings.LoginImageContentType = type; });
         return Results.Ok(BuildSettingsDto(store));
     }
@@ -791,7 +789,7 @@ public static class AdminEndpoints
         : bytes.Length >= 3 && bytes[0] == 255 && bytes[1] == 216 && bytes[2] == 255 ? "image/jpeg"
         : bytes.Length >= 12 && Encoding.ASCII.GetString(bytes, 0, 4) == "RIFF" && Encoding.ASCII.GetString(bytes, 8, 4) == "WEBP" ? "image/webp" : "";
 
-    private static async Task<IResult> UploadHomeImage(IFormFile? file, HttpContext context, DataStore store, IObjectStorage storage)
+    private static async Task<IResult> UploadHomeImage(IFormFile? file, HttpContext context, DataStore store, IStorageService storage)
     {
         if (file is null || file.Length == 0 || file.Length > 5 * 1024 * 1024)
             throw new ApiException(400, "Chọn ảnh trang chủ tối đa 5 MB.", "invalid_home_image");
@@ -800,9 +798,8 @@ public static class AdminEndpoints
         var type = StudioImageContentType(memory.ToArray());
         if (type.Length == 0)
             throw new ApiException(400, "Chỉ nhận ảnh PNG, JPG hoặc WebP hợp lệ.", "invalid_home_image");
-        var key = "home-image-" + Guid.NewGuid().ToString("N");
         memory.Position = 0;
-        await storage.PutAsync(key, memory, type, context.RequestAborted);
+        var key = await storage.UploadAsync(StorageFolders.Images, file.FileName, memory, type, context.RequestAborted);
         store.Write(data => { data.Settings.HomeImageKey = key; data.Settings.HomeImageContentType = type; });
         return Results.Ok(BuildSettingsDto(store));
     }

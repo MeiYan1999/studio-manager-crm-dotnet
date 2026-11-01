@@ -19,14 +19,14 @@ def main():
         raise RuntimeError("Build first: dotnet build StudioCore.csproj -c Release")
     with tempfile.TemporaryDirectory(prefix="may-backend-api-") as directory:
         # Do not inherit connection strings, storage configuration or .NET environment overrides.
-        prefixes = ("connectionstrings__", "storage__", "data__", "googledrive__", "aspnetcore_", "dotnet_", "crm_test_", "saas__", "billing__", "sepay__", "email__", "provisioning__")
+        prefixes = ("connectionstrings__", "storage__", "cloudflarer2__", "data__", "googledrive__", "aspnetcore_", "dotnet_", "crm_test_", "saas__", "billing__", "sepay__", "email__", "provisioning__")
         env = {key: value for key, value in os.environ.items()
                if not key.lower().startswith(prefixes) and key.lower() not in ("database_url", "admincode", "render_external_hostname")}
         with socket.socket() as sock:
             sock.bind(("127.0.0.1", 0))
             port = sock.getsockname()[1]
         base = "http://127.0.0.1:" + str(port)
-        env.update(Data__Directory=directory, Storage__Provider="local",
+        env.update(Data__Directory=directory,
                    ConnectionStrings__Postgres="", DATABASE_URL="",
                    AdminCode=secrets.token_urlsafe(32), ASPNETCORE_URLS=base,
                    ASPNETCORE_ENVIRONMENT="Production", CRM_TEST_URL=base)

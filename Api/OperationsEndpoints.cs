@@ -150,7 +150,7 @@ public static class OperationsEndpoints
             StudioAudit.Add(
                 data,
                 actor,
-                "finance",
+                StorageFolders.Finance,
                 kind == FinanceEntryKinds.Income ? "income" : "create",
                 kind == FinanceEntryKinds.Income
                     ? $"đã ghi khoản thu {FormatMoney(entry.Amount)} ({entry.Category})"
@@ -252,7 +252,7 @@ public static class OperationsEndpoints
         HttpContext context,
         DataStore store,
         AdminSessionStore sessions,
-        IObjectStorage storage)
+        IStorageService storage)
     {
         var actor = sessions.RequireUser(context);
         var files = store.Write(data =>
@@ -267,7 +267,7 @@ public static class OperationsEndpoints
                 $"đã xoá {FinanceEntryKinds.Label(entry.Kind).ToLowerInvariant()} {FormatMoney(entry.Amount)} ({entry.Category})",
                 entry.Id);
             return entry.Photos
-                .Select(photo => Path.GetFileName(photo.FileName))
+                .Select(photo => photo.FileName?.Trim() ?? "")
                 .Where(name => name.Length > 0)
                 .ToList();
         });
@@ -286,7 +286,7 @@ public static class OperationsEndpoints
         HttpContext context,
         DataStore store,
         AdminSessionStore sessions,
-        IObjectStorage storage)
+        IStorageService storage)
     {
         var actor = sessions.RequireUser(context);
         if (file is null || file.Length == 0)
@@ -321,10 +321,15 @@ public static class OperationsEndpoints
         var caption = context.Request.HasFormContentType
             ? AlbumText.TrimTo(context.Request.Form["caption"].ToString(), 120)
             : "";
-        var storedName = Guid.NewGuid().ToString("N") + extension;
+        string storedName;
         await using (var upload = new MemoryStream(bytes, writable: false))
         {
-            await storage.PutAsync(storedName, upload, contentType, context.RequestAborted);
+            storedName = await storage.UploadAsync(
+                "finance",
+                originalName,
+                upload,
+                contentType,
+                context.RequestAborted);
         }
 
         try
@@ -378,7 +383,7 @@ public static class OperationsEndpoints
         HttpContext context,
         DataStore store,
         AdminSessionStore sessions,
-        IObjectStorage storage)
+        IStorageService storage)
     {
         var actor = sessions.RequireUser(context);
         var fileName = store.Write(data =>
@@ -400,7 +405,7 @@ public static class OperationsEndpoints
                 "photo-delete",
                 $"đã xoá ảnh chứng từ của {FinanceEntryKinds.Label(entry.Kind).ToLowerInvariant()} {FormatMoney(entry.Amount)}",
                 entry.Id);
-            return Path.GetFileName(photo.FileName);
+            return photo.FileName;
         });
 
         await DeleteFinancePhotoFile(storage, fileName, context.RequestAborted);
@@ -411,7 +416,7 @@ public static class OperationsEndpoints
         string photoId,
         HttpContext context,
         DataStore store,
-        IObjectStorage storage)
+        IStorageService storage)
     {
         var photo = store.Read(data => data.Expenses
             .SelectMany(entry => entry.Photos)
@@ -659,7 +664,7 @@ public static class OperationsEndpoints
         HttpContext context,
         DataStore store,
         AdminSessionStore sessions,
-        IObjectStorage storage)
+        IStorageService storage)
     {
         return DeleteFinanceEntry(id, context, store, sessions, storage);
     }
@@ -2267,11 +2272,11 @@ public static class OperationsEndpoints
             : ExpenseCategories.Normalize(category);
 
     private static async Task DeleteFinancePhotoFile(
-        IObjectStorage storage,
+        IStorageService storage,
         string? fileName,
         CancellationToken cancellationToken)
     {
-        var name = Path.GetFileName(fileName ?? "");
+        var name = (fileName ?? "").Trim();
         if (name.Length == 0)
         {
             return;

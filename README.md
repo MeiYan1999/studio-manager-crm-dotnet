@@ -21,7 +21,7 @@ Bản SaaS bổ sung EF Core, ba cách truy cập studio, quyền theo gói, quo
 - `Persistence/`: EF Core 8.0.22, SQLite local hoặc PostgreSQL qua Npgsql EF 8.0.11; các bảng nghiệp vụ có khóa ghép `TenantId/Id`, global query filters và kiểm tra tenant khi ghi. Danh sách con (ảnh, lựa chọn, dòng đơn hàng) giữ JSON để tương thích nghiệp vụ cũ.
 - `Services/DataStore.cs`: facade tương thích API cũ; runtime đọc/ghi qua `SaasDatabase` trong transaction. JSON/`app_state` cũ chỉ dùng để nhập dữ liệu lần đầu.
 - `wwwroot/assets/js/app.js`: router phía trình duyệt. `api.js` gọi API cùng origin; các module còn lại dựng giao diện theo phân hệ.
-- `ObjectStorage`: local hoặc S3 tương thích (ký AWS Signature V4); `GoogleDriveService`: Drive API v3 cho thư mục công khai.
+- `IStorageService`: local khi phát triển hoặc Cloudflare R2 qua `AWSSDK.S3`; `GoogleDriveService`: Drive API v3 cho thư mục công khai.
 - CRM: khách hàng, gói dịch vụ, nhân sự, lịch chụp và nhật ký studio.
 - Bán hàng: đơn hàng, thanh toán, hóa đơn, hợp đồng, lịch thanh toán và báo cáo.
 - Vận hành: thu chi, chứng từ, bảng lương, chấm công, phân ca tuần, trang phục, concept và phiếu thuê/trả.
@@ -234,12 +234,16 @@ Cấu hình được đọc qua ASP.NET Core configuration (JSON và biến môi
 | `GoogleDrive:ApiKey` | rỗng | API key Google Drive |
 | `Data:Directory` | `data` | Thư mục SQLite `saas.db` và nguồn import JSON cũ |
 | `ConnectionStrings:Postgres` | rỗng | Chuỗi kết nối PostgreSQL thay cho SQLite |
-| `Storage:Provider` | `local` | Đặt `s3` để lưu ảnh chứng từ, logo và ảnh đăng nhập trong object storage |
-| `Storage:Endpoint` | rỗng | S3 endpoint, ví dụ endpoint bucket Cloudflare R2 |
-| `Storage:Region` | xem cấu hình triển khai | Bắt buộc khi dùng S3; phải phù hợp nhà cung cấp |
-| `Storage:Bucket` | rỗng | Tên bucket riêng tư |
-| `Storage:AccessKey` | rỗng | Access key của bucket |
-| `Storage:SecretKey` | rỗng | Secret key của bucket |
+| `CloudflareR2:ServiceUrl` | rỗng | S3 API endpoint của tài khoản Cloudflare R2 |
+| `CloudflareR2:BucketName` | rỗng | Tên bucket R2 riêng tư |
+| `CloudflareR2:AccessKey` | rỗng | Access key của R2 API token |
+| `CloudflareR2:SecretKey` | rỗng | Secret key của R2 API token |
+
+Trên Render dùng lần lượt các biến `CloudflareR2__ServiceUrl`,
+`CloudflareR2__BucketName`, `CloudflareR2__AccessKey` và `CloudflareR2__SecretKey`.
+Khi `ServiceUrl` để trống, môi trường local dùng thư mục `data/objects`. Upload mới luôn
+được phân vùng theo `{tenantId}/{folderName}/{guid.ext}`; object key phẳng cũ vẫn được
+đọc và xóa trong giai đoạn chuyển đổi.
 
 `AdminCode` tạo mật khẩu tài khoản admin đầu tiên. Đổi biến này không đổi password hash
 của tài khoản đã có, nhưng **có đổi mã đăng nhập legacy sau khi khởi động lại**.

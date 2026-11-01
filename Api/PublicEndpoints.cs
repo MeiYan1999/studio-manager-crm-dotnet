@@ -25,7 +25,7 @@ public static class PublicEndpoints
             data.Settings.Website
         })));
 
-        app.MapGet("/api/public/logo", async (HttpContext context, DataStore store, IObjectStorage storage) =>
+        app.MapGet("/api/public/logo", async (HttpContext context, DataStore store, IStorageService storage) =>
         {
             var logo = store.Read(data => new { data.Settings.LogoKey, data.Settings.LogoContentType });
             if (logo.LogoKey.Length == 0) return Results.NotFound();
@@ -35,7 +35,7 @@ public static class PublicEndpoints
             context.Response.Headers.CacheControl = "no-cache";
             return Results.Stream(stored.Content, logo.LogoContentType);
         });
-        app.MapGet("/api/public/login-image", async (HttpContext context, DataStore store, IObjectStorage storage) =>
+        app.MapGet("/api/public/login-image", async (HttpContext context, DataStore store, IStorageService storage) =>
         {
             var logo = store.Read(data => new { data.Settings.LoginImageKey, data.Settings.LoginImageContentType });
             if (logo.LoginImageKey.Length == 0) return Results.NotFound();
@@ -45,7 +45,7 @@ public static class PublicEndpoints
             context.Response.Headers.CacheControl = "no-cache";
             return Results.Stream(stored.Content, logo.LoginImageContentType);
         });
-        app.MapGet("/api/public/home-image", async (HttpContext context, DataStore store, IObjectStorage storage) =>
+        app.MapGet("/api/public/home-image", async (HttpContext context, DataStore store, IStorageService storage) =>
         {
             var image = store.Read(data => new { data.Settings.HomeImageKey, data.Settings.HomeImageContentType });
             if (image.HomeImageKey.Length == 0) return Results.NotFound();

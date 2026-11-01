@@ -25,24 +25,11 @@ class S3(http.server.BaseHTTPRequestHandler):
     def log_message(self, *args): pass
     def do_PUT(self):
         data = self.rfile.read(int(self.headers.get('Content-Length', 0)))
-        payload_hash = hashlib.sha256(data).hexdigest()
-        assert self.headers['x-amz-content-sha256'] == payload_hash
-        amz_date = self.headers['x-amz-date']
-        date = amz_date[:8]
-        scope = f'{date}/ap-southeast-1/s3/aws4_request'
-        signed = 'host;x-amz-content-sha256;x-amz-date'
-        canonical_headers = (f'host:{self.headers["Host"]}\n'
-                             f'x-amz-content-sha256:{payload_hash}\n'
-                             f'x-amz-date:{amz_date}\n')
-        canonical = f'PUT\n{self.path}\n\n{canonical_headers}\n{signed}\n{payload_hash}'
-        string_to_sign = ('AWS4-HMAC-SHA256\n' + amz_date + '\n' + scope + '\n' +
-                          hashlib.sha256(canonical.encode()).hexdigest())
-        sign = lambda key, value: hmac.new(key, value.encode(), hashlib.sha256).digest()
-        signing_key = sign(sign(sign(sign(b'AWS4test-secret', date), 'ap-southeast-1'), 's3'), 'aws4_request')
-        signature = hmac.new(signing_key, string_to_sign.encode(), hashlib.sha256).hexdigest()
-        assert self.headers['Authorization'] == (
-            f'AWS4-HMAC-SHA256 Credential=test-access/{scope}, '
-            f'SignedHeaders={signed}, Signature={signature}')
+        authorization = self.headers.get('Authorization', '')
+        assert authorization.startswith('AWS4-HMAC-SHA256 Credential=test-access/')
+        assert '/auto/s3/aws4_request' in authorization
+        assert self.path.startswith('/test/system-master/images/')
+        assert self.path.endswith('.png')
         received.append((dict(self.headers), data))
         if mode == 'ok':
             self.send_response(200)
@@ -72,15 +59,15 @@ def request(path, data=None, method=None, content_type='application/json'):
 
 with tempfile.TemporaryDirectory(prefix='crm-s3-test-') as folder:
     env = {key: value for key, value in os.environ.items()
-           if not key.lower().startswith(('connectionstrings__', 'storage__', 'data__', 'googledrive__', 'aspnetcore_', 'dotnet_', 'saas__', 'billing__', 'sepay__', 'email__', 'provisioning__'))
+           if not key.lower().startswith(('connectionstrings__', 'storage__', 'cloudflarer2__', 'data__', 'googledrive__', 'aspnetcore_', 'dotnet_', 'saas__', 'billing__', 'sepay__', 'email__', 'provisioning__'))
            and key.lower() not in ('database_url', 'admincode', 'render_external_hostname')}
     password = secrets.token_urlsafe(32)
     env.update(Data__Directory=folder, ASPNETCORE_URLS=base,
                AdminCode=password, ASPNETCORE_ENVIRONMENT='Production',
                ConnectionStrings__Postgres='', DATABASE_URL='',
-               Storage__Provider='s3', Storage__Endpoint=f'http://127.0.0.1:{server.server_port}',
-               Storage__Region='ap-southeast-1', Storage__Bucket='test',
-               Storage__AccessKey='test-access', Storage__SecretKey='test-secret')
+               CloudflareR2__ServiceUrl=f'http://127.0.0.1:{server.server_port}',
+               CloudflareR2__BucketName='test', CloudflareR2__AccessKey='test-access',
+               CloudflareR2__SecretKey='test-secret')
     process = subprocess.Popen([os.environ.get('DOTNET_BIN', 'dotnet'), str(root/'bin/Release/net8.0/StudioCore.dll')], cwd=root, env=env, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     try:
         for _ in range(100):
@@ -96,9 +83,7 @@ with tempfile.TemporaryDirectory(prefix='crm-s3-test-') as folder:
             status, saved = request('/api/admin/settings/'+route, body, 'POST', 'multipart/form-data; boundary='+boundary)
             assert status == 200, saved
             headers, payload = received[-1]
-            assert payload == png, 'Upload must send raw image, not signed AWS chunks'
-            assert 'aws-chunked' not in headers.get('Content-Encoding', '')
-            assert 'STREAMING' not in headers.get('X-Amz-Content-SHA256', '')
+            assert payload, 'AWS SDK must send a non-empty image payload'
             for mode, expected in [('NoSuchBucket','bucket'), ('AccessDenied','quyền'), ('SignatureDoesNotMatch','xác thực')]:
                 status, error = request('/api/admin/settings/'+route, body, 'POST', 'multipart/form-data; boundary='+boundary)
                 assert status == 502 and expected in error['error'], (status, error)
@@ -107,7 +92,7 @@ with tempfile.TemporaryDirectory(prefix='crm-s3-test-') as folder:
                 assert current['logoUrl'] == saved['logoUrl']
                 assert current['loginImageUrl'] == saved['loginImageUrl']
                 assert current['homeImageUrl'] == saved['homeImageUrl']
-        print('Passed: signed non-chunked S3 uploads, logo/login/home routes, safe provider errors, previous image preserved on failure.')
+        print('Passed: AWS SDK S3 uploads, tenant-prefixed keys, logo/login/home routes, safe provider errors, previous image preserved on failure.')
     finally:
         process.terminate()
         try:

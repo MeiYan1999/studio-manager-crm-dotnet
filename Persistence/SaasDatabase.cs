@@ -22,22 +22,39 @@ public sealed class SaasDatabase(IWebHostEnvironment environment, IConfiguration
         return new StudioDbContext(options.Options, tenantId ?? tenant.TenantId);
     }
 
-    public void Initialize(AppData legacy)
+    public void Initialize(AppData legacy, string? systemDomain = null)
     {
         lock (sync)
         {
             using var db = Open(Studio.MasterId);
             db.Database.Migrate();
             using var tx = db.Database.BeginTransaction(IsolationLevel.Serializable);
-            if (db.Workspaces.Any()) return; // One-time import; source JSON/app_state is retained.
             var master = db.Studios.Find(Studio.MasterId);
             if (master is null)
             {
                 // Existing studios keep their current features through an explicit legacy gift.
                 // New studios always start Free. Never grant this exception by request input.
-                db.Studios.Add(new Studio { Id = Studio.MasterId, Name = legacy.Settings.StudioName,
-                    CurrentPlan = SubscriptionPlan.ErpStudio, IsTrialGift = true, MaxUsers = 5, MonthlyPcFilterQuota = -1 });
-                db.SaveChanges();
+                master = new Studio { Id = Studio.MasterId, Name = legacy.Settings.StudioName,
+                    CurrentPlan = SubscriptionPlan.ErpStudio, IsTrialGift = true, MaxUsers = 5, MonthlyPcFilterQuota = -1 };
+                db.Studios.Add(master);
+            }
+
+            var domain = NormalizeDomain(systemDomain);
+            if (domain is not null)
+            {
+                var owner = db.Studios.SingleOrDefault(studio => studio.CustomDomain == domain);
+                if (owner is null || owner.Id == Studio.MasterId)
+                {
+                    master.CustomDomain = domain;
+                    master.CustomDomainVerified = true;
+                }
+            }
+
+            db.SaveChanges();
+            if (db.Workspaces.Any())
+            {
+                tx.Commit();
+                return; // One-time import; source JSON/app_state is retained.
             }
             Stamp(legacy, Studio.MasterId);
             var workspace = new TenantWorkspace { TenantId = Studio.MasterId };
@@ -45,6 +62,15 @@ public sealed class SaasDatabase(IWebHostEnvironment environment, IConfiguration
             Persist(db, legacy, workspace);
             tx.Commit();
         }
+    }
+
+    private static string? NormalizeDomain(string? value)
+    {
+        var candidate = (value ?? "").Trim().TrimEnd('.').ToLowerInvariant();
+        if (candidate.Length == 0) return null;
+        if (Uri.TryCreate(candidate, UriKind.Absolute, out var uri)) candidate = uri.Host.ToLowerInvariant();
+        if (candidate.StartsWith("www.", StringComparison.Ordinal)) candidate = candidate[4..];
+        return candidate.Length == 0 ? null : candidate;
     }
 
     public T Read<T>(Func<AppData, T> reader)

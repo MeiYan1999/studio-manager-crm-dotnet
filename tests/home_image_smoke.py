@@ -47,7 +47,8 @@ def run():
     request(admin, "/api/auth/login", {"username": "admin", "password": os.environ["CRM_TEST_PASSWORD"]})
     saved = upload(admin, png)
     first_url = saved["homeImageUrl"]
-    assert first_url.startswith("/api/public/home-image?v=home-image-")
+    assert first_url.startswith("/api/public/home-image?v=system-master/images/")
+    assert first_url.endswith(".png")
     image, headers = request(guest, first_url)
     assert image == png
     assert headers.get_content_type() == "image/png"

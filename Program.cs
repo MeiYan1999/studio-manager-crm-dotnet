@@ -5,6 +5,7 @@ using StudioCore.Persistence;
 using StudioCore.Models;
 using StudioCore.Services;
 using Microsoft.AspNetCore.ResponseCompression;
+using Microsoft.EntityFrameworkCore;
 using System.Threading.RateLimiting;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -35,7 +36,12 @@ builder.Services.AddSingleton<SubscriptionBilling>();
 builder.Services.AddSingleton<ISubscriptionGuard, SubscriptionGuard>();
 builder.Services.AddHostedService<SubscriptionMaintenance>();
 builder.Services.AddSingleton<DataStore>();
-builder.Services.AddSingleton<IObjectStorage, ObjectStorage>();
+builder.Services.AddSingleton<CloudflareStorageService>();
+builder.Services.AddSingleton<LocalStorageService>();
+builder.Services.AddSingleton<IStorageService>(services =>
+    string.IsNullOrWhiteSpace(services.GetRequiredService<IConfiguration>()["CloudflareR2:ServiceUrl"])
+        ? services.GetRequiredService<LocalStorageService>()
+        : services.GetRequiredService<CloudflareStorageService>());
 builder.Services.AddSingleton<AdminSessionStore>();
 builder.Services.AddSingleton<GoogleDriveService>();
 builder.Services.AddHttpClient("dns", client => { client.Timeout = TimeSpan.FromSeconds(12); client.DefaultRequestHeaders.Accept.ParseAdd("application/dns-json"); });
@@ -225,8 +231,15 @@ app.MapFallback(async context =>
     await ServeAppShell(context);
 });
 
+var saasDatabase = app.Services.GetRequiredService<SaasDatabase>();
+await using (var startupDb = saasDatabase.Open(Studio.MasterId))
+{
+    // Apply pending PostgreSQL/SQLite migrations before any request can resolve a tenant.
+    await startupDb.Database.MigrateAsync();
+}
 var store = app.Services.GetRequiredService<DataStore>();
-store.InitializeSaas();
+var systemDomain = builder.Configuration["Saas:BaseDomain"] ?? "studiocore.io.vn";
+store.InitializeSaas(systemDomain);
 if (args.Contains("--create-studio"))
 {
     var provisioned = app.Services.GetRequiredService<StudioProvisioning>().Create(

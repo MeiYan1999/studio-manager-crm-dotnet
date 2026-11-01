@@ -45,6 +45,18 @@ public sealed class SaasTests : IDisposable
         using var db = database.Open();
         Assert.Equal(2, db.Set<Customer>().IgnoreQueryFilters().Count());
     }
+    [Fact] public void SystemTenantSeedAttachesRootDomainAndIsIdempotent()
+    {
+        var legacy = new AppData { Settings = new StudioSettings { StudioName = "Ignored second import" } };
+        database.Initialize(legacy, "https://www.studiocore.io.vn/");
+        database.Initialize(legacy, "studiocore.io.vn");
+        using var db = database.Open(Studio.MasterId);
+        var master = db.Studios.Single(studio => studio.Id == Studio.MasterId);
+        Assert.Equal("studiocore.io.vn", master.CustomDomain);
+        Assert.True(master.CustomDomainVerified);
+        Assert.Single(db.Workspaces);
+        Assert.Equal("Original studio", database.Read(data => data.Settings.StudioName));
+    }
     [Fact] public void FailingWriterRollsBackAndCrossTenantPayloadIsRejected()
     {
         TenantContext.Set(accessor.HttpContext!, "tenant-b");

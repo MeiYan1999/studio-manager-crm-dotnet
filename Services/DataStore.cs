@@ -104,7 +104,7 @@ public sealed class DataStore
         }
     }
 
-    public void InitializeSaas() => _saas?.Initialize(_data);
+    public void InitializeSaas(string? systemDomain = null) => _saas?.Initialize(_data, systemDomain);
 
     public SaasDatabase? Saas => _saas;
 
@@ -998,7 +998,7 @@ public sealed class DataStore
                     photoIds.Add(photo.Id);
                 }
 
-                photo.FileName = Path.GetFileName(photo.FileName ?? "");
+                photo.FileName = NormalizeStorageKey(photo.FileName);
                 photo.OriginalName = AlbumText.TrimTo(photo.OriginalName, 180);
                 photo.ContentType = AlbumText.TrimTo(photo.ContentType, 80);
                 photo.Caption = AlbumText.TrimTo(photo.Caption, 120);
@@ -1326,6 +1326,15 @@ public sealed class DataStore
             .ToList();
 
         data.NotificationSettings ??= new NotificationSettings();
+    }
+
+    private static string NormalizeStorageKey(string? value)
+    {
+        var key = (value ?? "").Trim().Replace('\\', '/').TrimStart('/');
+        if (key.Length == 0 || key.Contains("..", StringComparison.Ordinal)) return "";
+        return string.Join('/', key.Split('/', StringSplitOptions.RemoveEmptyEntries)
+            .Select(segment => Path.GetFileName(segment) ?? "")
+            .Where(segment => segment.Length > 0));
     }
 
     private static string NormalizeMonth(string? value)
