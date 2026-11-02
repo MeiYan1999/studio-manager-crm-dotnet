@@ -11,6 +11,7 @@ public sealed class StudioDbContext(DbContextOptions<StudioDbContext> options, s
 {
     public string TenantId { get; } = tenantId;
     public DbSet<Studio> Studios => Set<Studio>();
+    public DbSet<GoogleIdentity> GoogleIdentities => Set<GoogleIdentity>();
     public DbSet<SubscriptionTransaction> SubscriptionTransactions => Set<SubscriptionTransaction>();
     public DbSet<TenantWorkspace> Workspaces => Set<TenantWorkspace>();
     public static readonly PropertyInfo[] Collections = typeof(AppData).GetProperties()
@@ -29,6 +30,14 @@ public sealed class StudioDbContext(DbContextOptions<StudioDbContext> options, s
             e.HasIndex(s => s.Slug).IsUnique();
             e.HasIndex(s => s.CustomDomain).IsUnique();
         });
+        model.Entity<GoogleIdentity>(e =>
+        {
+            e.ToTable("GoogleIdentities");
+            e.HasKey(identity => identity.GoogleSubject);
+            e.Property(identity => identity.GoogleSubject).HasMaxLength(255);
+            e.Property(identity => identity.Email).HasMaxLength(320);
+            e.HasIndex(identity => identity.Email);
+        });
         foreach (var type in TenantTypes)
             typeof(StudioDbContext).GetMethod(nameof(ConfigureTenant), BindingFlags.NonPublic | BindingFlags.Instance)!
                 .MakeGenericMethod(type).Invoke(this, [model]);
@@ -36,8 +45,12 @@ public sealed class StudioDbContext(DbContextOptions<StudioDbContext> options, s
         model.Entity<SubscriptionTransaction>().HasIndex(s => s.PaymentCode).IsUnique();
         model.Entity<SubscriptionTransaction>().HasIndex(s => s.SePayReference).IsUnique();
         model.Entity<StudioUser>().HasIndex(s => new { s.TenantId, s.Username }).IsUnique();
+        model.Entity<StudioUser>().HasIndex(s => new { s.TenantId, s.GoogleSubject }).IsUnique();
+        model.Entity<StudioUser>().HasOne<GoogleIdentity>().WithMany()
+            .HasForeignKey(s => s.GoogleSubject).OnDelete(DeleteBehavior.Restrict);
         model.Entity<AccountToken>().HasIndex(s => s.TokenHash).IsUnique();
         model.Entity<AccountToken>().HasIndex(s => new { s.TenantId, s.UserId, s.Purpose });
+        model.Entity<StudioInvitation>().HasIndex(s => new { s.TenantId, s.PendingKey }).IsUnique();
         model.Entity<Album>().HasIndex(s => new { s.TenantId, s.ShareToken }).IsUnique();
     }
 

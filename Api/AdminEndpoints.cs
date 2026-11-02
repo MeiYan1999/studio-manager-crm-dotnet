@@ -1,6 +1,8 @@
 using System.Net.Mail;
 using System.Text;
+using Microsoft.EntityFrameworkCore;
 using StudioCore.Models;
+using StudioCore.Persistence;
 using StudioCore.Services;
 
 namespace StudioCore.Api;
@@ -605,18 +607,36 @@ public static class AdminEndpoints
         UpdateStudioUserRequest request,
         HttpContext context,
         DataStore store,
-        AdminSessionStore sessions)
+        AdminSessionStore sessions,
+        SaasDatabase database,
+        TenantContext tenant)
     {
         var current = sessions.RequireUser(context);
         var username = request.Username is null ? null : NormalizeUsernameOrThrow(request.Username);
+        var email = request.Email is null ? null : NormalizeMembershipEmailOrThrow(request.Email);
         var displayName = request.DisplayName is null ? null : RequireDisplayName(request.DisplayName);
         var role = request.Role is null ? null : NormalizeRoleOrThrow(request.Role);
+
+        if (email is not null)
+        {
+            using var lookup = database.Open(Studio.MasterId);
+            var duplicate = lookup.Set<StudioUser>().IgnoreQueryFilters().Any(candidate =>
+                candidate.GoogleSubject == null && candidate.IsEmailVerified && candidate.Email.ToLower() == email &&
+                (candidate.TenantId != tenant.TenantId || candidate.Id != id));
+            if (duplicate)
+                throw new ApiException(409, "Email này đang thuộc một tài khoản legacy khác và không thể liên kết Google an toàn.", "email_link_ambiguous");
+        }
 
         var dto = store.Write(data =>
         {
             var user = FindUser(data, id);
             var isSelf = string.Equals(user.Id, current.Id, StringComparison.Ordinal);
             var roleChanged = role is not null && !string.Equals(role, user.Role, StringComparison.Ordinal);
+            if (email is not null && !string.IsNullOrWhiteSpace(user.GoogleSubject) &&
+                !string.Equals(email, user.Email, StringComparison.OrdinalIgnoreCase))
+            {
+                throw new ApiException(409, "Email của tài khoản đã liên kết Google không thể đổi tại studio.", "google_managed_email");
+            }
             if (isSelf && roleChanged)
             {
                 throw new ApiException(400, "Bạn không thể tự đổi vai trò của mình.", "cannot_change_own_role");
@@ -656,6 +676,13 @@ public static class AdminEndpoints
             if (displayName is not null)
             {
                 user.DisplayName = displayName;
+            }
+
+            if (email is not null && !string.Equals(email, user.Email, StringComparison.OrdinalIgnoreCase))
+            {
+                user.Email = email;
+                user.IsEmailVerified = true;
+                changes.Add($"Cập nhật email Google: {email}");
             }
 
             if (role is not null)
@@ -719,6 +746,15 @@ public static class AdminEndpoints
         return Results.Ok(dto);
     }
 
+    private static string NormalizeMembershipEmailOrThrow(string value)
+    {
+        var email = value.Trim().ToLowerInvariant();
+        if (email.Length > 160 || !MailAddress.TryCreate(email, out var parsed) ||
+            !string.Equals(parsed.Address, email, StringComparison.OrdinalIgnoreCase))
+            throw new ApiException(400, "Email Google chưa đúng định dạng.", "invalid_email");
+        return email;
+    }
+
     private static IResult ResetUserPassword(
         string id,
         ResetStudioUserPasswordRequest request,
@@ -731,6 +767,8 @@ public static class AdminEndpoints
         store.Write(data =>
         {
             var user = FindUser(data, id);
+            if (!string.IsNullOrWhiteSpace(user.GoogleSubject))
+                throw new ApiException(409, "Tài khoản này đăng nhập bằng Google và không sử dụng mật khẩu StudioCore.", "google_managed_account");
             var isSelf = string.Equals(user.Id, actor.Id, StringComparison.Ordinal);
             user.PasswordHash = PasswordHasher.Hash(password);
             user.MustChangePassword = !isSelf;

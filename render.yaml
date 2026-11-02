@@ -14,6 +14,10 @@ services:
         value: studiocore.io.vn
       - key: Saas__PublicOrigin
         value: https://studiocore.io.vn
+      - key: Authentication__Google__ClientId
+        sync: false
+      - key: Authentication__Google__ClientSecret
+        sync: false
       - key: AdminCode
         sync: false
       - key: ConnectionStrings__Postgres

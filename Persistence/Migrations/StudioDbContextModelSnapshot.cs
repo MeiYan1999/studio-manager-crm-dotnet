@@ -318,8 +318,6 @@ namespace StudioCore.Persistence.Migrations
 
                     b.Property<bool>("IsActive");
 
-                    b.Property<bool>("IsEmailVerified");
-
                     b.Property<string>("Name")
                         .IsRequired();
 
@@ -760,6 +758,31 @@ namespace StudioCore.Persistence.Migrations
                     b.ToTable("StaffMember", (string)null);
                 });
 
+            modelBuilder.Entity("StudioCore.Models.GoogleIdentity", b =>
+                {
+                    b.Property<string>("GoogleSubject")
+                        .HasMaxLength(255);
+
+                    b.Property<DateTimeOffset>("CreatedAt");
+
+                    b.Property<string>("DisplayName")
+                        .IsRequired();
+
+                    b.Property<string>("Email")
+                        .IsRequired()
+                        .HasMaxLength(320);
+
+                    b.Property<bool>("IsActive");
+
+                    b.Property<DateTimeOffset>("LastLoginAt");
+
+                    b.HasKey("GoogleSubject");
+
+                    b.HasIndex("Email");
+
+                    b.ToTable("GoogleIdentities", (string)null);
+                });
+
             modelBuilder.Entity("StudioCore.Models.Studio", b =>
                 {
                     b.Property<string>("Id");
@@ -860,10 +883,14 @@ namespace StudioCore.Persistence.Migrations
 
                     b.Property<DateTimeOffset?>("AcceptedAt");
 
+                    b.Property<DateTimeOffset?>("CancelledAt");
+
                     b.Property<string>("Email")
                         .IsRequired();
 
                     b.Property<DateTimeOffset>("ExpiresAt");
+
+                    b.Property<string>("PendingKey");
 
                     b.Property<string>("Role")
                         .IsRequired();
@@ -872,6 +899,9 @@ namespace StudioCore.Persistence.Migrations
                         .IsRequired();
 
                     b.HasKey("TenantId", "Id");
+
+                    b.HasIndex("TenantId", "PendingKey")
+                        .IsUnique();
 
                     b.ToTable("StudioInvitation", (string)null);
                 });
@@ -892,7 +922,11 @@ namespace StudioCore.Persistence.Migrations
                     b.Property<string>("Email")
                         .IsRequired();
 
+                    b.Property<string>("GoogleSubject");
+
                     b.Property<bool>("IsActive");
+
+                    b.Property<bool>("IsEmailVerified");
 
                     b.Property<DateTimeOffset?>("LastLoginAt");
 
@@ -920,6 +954,9 @@ namespace StudioCore.Persistence.Migrations
                     b.HasKey("TenantId", "Id");
 
                     b.HasIndex("TenantId", "Username")
+                        .IsUnique();
+
+                    b.HasIndex("TenantId", "GoogleSubject")
                         .IsUnique();
 
                     b.ToTable("StudioUser", (string)null);
@@ -1162,6 +1199,11 @@ namespace StudioCore.Persistence.Migrations
 
             modelBuilder.Entity("StudioCore.Models.StudioUser", b =>
                 {
+                    b.HasOne("StudioCore.Models.GoogleIdentity", null)
+                        .WithMany()
+                        .HasForeignKey("GoogleSubject")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("StudioCore.Models.Studio", null)
                         .WithMany()
                         .HasForeignKey("TenantId")

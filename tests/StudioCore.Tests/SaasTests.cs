@@ -57,6 +57,144 @@ public sealed class SaasTests : IDisposable
         Assert.Single(db.Workspaces);
         Assert.Equal("Original studio", database.Read(data => data.Settings.StudioName));
     }
+    [Fact] public void GoogleLoginCreatesOneFreeTenantAndReusesImmutableSubject()
+    {
+        var service = new GoogleLoginService(database, new StudioProvisioning(database));
+        var first = service.SignInOrProvision("google-subject-1", "owner@example.com", "Ánh Dương");
+        var second = service.SignInOrProvision("google-subject-1", "changed@example.com", "Tên mới");
+
+        Assert.True(first.IsNewStudio);
+        Assert.False(second.IsNewStudio);
+        Assert.Equal(Assert.Single(first.Workspaces).Studio.Id, Assert.Single(second.Workspaces).Studio.Id);
+        Assert.Equal(SubscriptionPlan.Free, Assert.Single(first.Workspaces).Studio.CurrentPlan);
+        Assert.Equal("google-subject-1", Assert.Single(second.Workspaces).User.GoogleSubject);
+        Assert.True(Assert.Single(second.Workspaces).User.IsEmailVerified);
+        Assert.Equal("anh-duong", Assert.Single(first.Workspaces).Studio.Slug);
+    }
+
+    [Fact] public void GoogleLoginLinksExactlyOnePreviouslyVerifiedEmail()
+    {
+        TenantContext.Set(accessor.HttpContext!, "tenant-b");
+        database.Write(data =>
+        {
+            data.Users.Add(new StudioUser { Id = "existing-google-owner", Username = "existing", Email = "existing@example.com", IsEmailVerified = true, Role = "admin" });
+            return 0;
+        });
+        var service = new GoogleLoginService(database, new StudioProvisioning(database));
+        var result = service.SignInOrProvision("google-subject-existing", "existing@example.com", "Existing Owner");
+
+        Assert.False(result.IsNewStudio);
+        Assert.Equal("tenant-b", Assert.Single(result.Workspaces).Studio.Id);
+        Assert.Equal("google-subject-existing", Assert.Single(result.Workspaces).User.GoogleSubject);
+    }
+    [Fact] public void GoogleLoginDoesNotClaimAmbiguousLegacyEmail()
+    {
+        database.Mutate(Studio.MasterId, (db, _) =>
+        {
+            db.Add(new StudioUser { Id = "legacy-master", Username = "legacy-master", Email = "shared@example.com", IsEmailVerified = true, Role = "admin" });
+            return 0;
+        });
+        database.Mutate("tenant-b", (db, _) =>
+        {
+            db.Add(new StudioUser { Id = "legacy-tenant", Username = "legacy-tenant", Email = "shared@example.com", IsEmailVerified = true, Role = "admin" });
+            return 0;
+        });
+
+        var service = new GoogleLoginService(database, new StudioProvisioning(database));
+        var result = service.SignInOrProvision("google-shared", "shared@example.com", "Shared User");
+
+        Assert.True(result.IsNewStudio);
+        Assert.DoesNotContain(result.Workspaces, workspace => workspace.Studio.Id is Studio.MasterId or "tenant-b");
+        using var lookup = database.Open(Studio.MasterId);
+        Assert.Equal(2, lookup.Set<StudioUser>().IgnoreQueryFilters().Count(user => user.Email == "shared@example.com" && user.GoogleSubject == null));
+    }
+
+    [Fact] public void DisabledGoogleIdentityCannotListOrSelectAnyWorkspace()
+    {
+        var service = new GoogleLoginService(database, new StudioProvisioning(database));
+        var login = service.SignInOrProvision("google-disabled", "disabled@example.com", "Disabled User");
+        var workspace = Assert.Single(login.Workspaces);
+        using (var lookup = database.Open(Studio.MasterId))
+        {
+            var identity = lookup.GoogleIdentities.Single(candidate => candidate.GoogleSubject == "google-disabled");
+            identity.IsActive = false;
+            lookup.SaveChanges();
+        }
+
+        Assert.Equal("account_disabled", Assert.Throws<ApiException>(() => service.ListWorkspaces("google-disabled")).Code);
+        Assert.Equal("account_disabled", Assert.Throws<ApiException>(() => service.SelectWorkspace("google-disabled", workspace.Studio.Id)).Code);
+    }
+
+    [Fact] public void PendingInvitationKeyIsUniqueWithinTenantButReusableAfterCancellation()
+    {
+        database.Mutate("tenant-b", (db, _) =>
+        {
+            db.Add(new StudioInvitation { Email = "unique@example.com", PendingKey = "unique@example.com", ExpiresAt = DateTimeOffset.UtcNow.AddDays(7) });
+            return 0;
+        });
+        Assert.ThrowsAny<Exception>(() => database.Mutate("tenant-b", (db, _) =>
+        {
+            db.Add(new StudioInvitation { Email = "unique@example.com", PendingKey = "unique@example.com", ExpiresAt = DateTimeOffset.UtcNow.AddDays(7) });
+            return 0;
+        }));
+        database.Mutate("tenant-b", (db, _) =>
+        {
+            var invitation = db.Set<StudioInvitation>().Single(candidate => candidate.PendingKey == "unique@example.com");
+            invitation.CancelledAt = DateTimeOffset.UtcNow;
+            invitation.PendingKey = null;
+            return 0;
+        });
+        database.Mutate("tenant-b", (db, _) =>
+        {
+            db.Add(new StudioInvitation { Email = "unique@example.com", PendingKey = "unique@example.com", ExpiresAt = DateTimeOffset.UtcNow.AddDays(7) });
+            return 0;
+        });
+    }
+    [Fact] public void GoogleLoginAcceptsPreapprovedInvitationsAcrossMultipleStudiosWithoutCreatingFreeTenant()
+    {
+        database.Mutate("tenant-b", (db, studio) =>
+        {
+            studio.CurrentPlan = SubscriptionPlan.ErpStudio; studio.MaxUsers = 5;
+            db.Add(new StudioInvitation { Email = "staff@example.com", Role = "sale", ExpiresAt = DateTimeOffset.UtcNow.AddDays(7) });
+            return 0;
+        });
+        var service = new GoogleLoginService(database, new StudioProvisioning(database));
+        var first = service.SignInOrProvision("google-staff", "staff@example.com", "Studio Staff");
+        Assert.False(first.IsNewStudio);
+        Assert.Equal("tenant-b", Assert.Single(first.Workspaces).Studio.Id);
+        Assert.Equal("sale", Assert.Single(first.Workspaces).User.Role);
+
+        using (var root = database.Open(Studio.MasterId))
+        {
+            root.Studios.Add(new Studio { Id = "tenant-c", Slug = "studio-c", CurrentPlan = SubscriptionPlan.ErpStudio, MaxUsers = 5 });
+            root.SaveChanges();
+        }
+        using (var tenant = database.Open("tenant-c"))
+        {
+            tenant.Workspaces.Add(new TenantWorkspace { MetadataJson = JsonSerializer.Serialize(new AppData(), new JsonSerializerOptions(JsonSerializerDefaults.Web)) });
+            tenant.Add(new StudioInvitation { Email = "staff@example.com", Role = "employee", ExpiresAt = DateTimeOffset.UtcNow.AddDays(7) });
+            tenant.SaveChanges();
+        }
+        var second = service.SignInOrProvision("google-staff", "staff@example.com", "Studio Staff");
+        Assert.Equal(2, second.Workspaces.Count);
+        Assert.Equal(2, second.Workspaces.Select(workspace => workspace.User.TenantId).Distinct().Count());
+    }
+    [Fact] public void PendingInvitationWithoutAvailablePlanDoesNotCreateAnUnrelatedFreeStudio()
+    {
+        database.Mutate("tenant-b", (db, studio) =>
+        {
+            studio.CurrentPlan = SubscriptionPlan.Free;
+            db.Add(new StudioInvitation { Email = "blocked@example.com", Role = "employee", ExpiresAt = DateTimeOffset.UtcNow.AddDays(7) });
+            return 0;
+        });
+        using var before = database.Open(Studio.MasterId);
+        var studioCount = before.Studios.Count();
+        var service = new GoogleLoginService(database, new StudioProvisioning(database));
+        var exception = Assert.Throws<ApiException>(() => service.SignInOrProvision("google-blocked", "blocked@example.com", "Blocked Staff"));
+        Assert.Equal("invitation_pending_unavailable", exception.Code);
+        using var after = database.Open(Studio.MasterId);
+        Assert.Equal(studioCount, after.Studios.Count());
+    }
     [Fact] public void FailingWriterRollsBackAndCrossTenantPayloadIsRejected()
     {
         TenantContext.Set(accessor.HttpContext!, "tenant-b");

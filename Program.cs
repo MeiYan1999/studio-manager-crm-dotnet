@@ -6,6 +6,10 @@ using StudioCore.Models;
 using StudioCore.Services;
 using Microsoft.AspNetCore.ResponseCompression;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Authentication.Google;
+using Microsoft.AspNetCore.HttpOverrides;
+using Microsoft.AspNetCore.DataProtection;
 using System.Threading.RateLimiting;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -17,6 +21,55 @@ builder.Services.ConfigureHttpJsonOptions(options =>
 });
 
 builder.Services.AddHttpContextAccessor();
+var authKeyDirectory = Path.GetFullPath(Path.Combine(builder.Configuration["Data:Directory"] ?? "data", "auth-keys"), builder.Environment.ContentRootPath);
+Directory.CreateDirectory(authKeyDirectory);
+builder.Services.AddDataProtection()
+    .PersistKeysToFileSystem(new DirectoryInfo(authKeyDirectory))
+    .SetApplicationName("StudioCore");
+builder.Services.Configure<ForwardedHeadersOptions>(options =>
+{
+    options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto | ForwardedHeaders.XForwardedHost;
+    options.KnownNetworks.Clear();
+    options.KnownProxies.Clear();
+});
+builder.Services.AddAuthentication()
+    .AddCookie(GoogleAuthEndpoints.PlatformCookie, options =>
+    {
+        options.Cookie.Name = "studiocore_identity";
+        options.Cookie.HttpOnly = true;
+        options.Cookie.SameSite = SameSiteMode.Lax;
+        options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
+        options.ExpireTimeSpan = TimeSpan.FromDays(14);
+        options.SlidingExpiration = true;
+    })
+    .AddCookie(GoogleAuthEndpoints.ExternalCookie, options =>
+    {
+        options.Cookie.Name = "studiocore_google_external";
+        options.Cookie.HttpOnly = true;
+        options.Cookie.SameSite = SameSiteMode.Lax;
+        options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
+        options.ExpireTimeSpan = TimeSpan.FromMinutes(10);
+    })
+    .AddGoogle(GoogleDefaults.AuthenticationScheme, options =>
+    {
+        options.SignInScheme = GoogleAuthEndpoints.ExternalCookie;
+        options.ClientId = string.IsNullOrWhiteSpace(builder.Configuration["Authentication:Google:ClientId"])
+            ? "not-configured" : builder.Configuration["Authentication:Google:ClientId"]!;
+        options.ClientSecret = string.IsNullOrWhiteSpace(builder.Configuration["Authentication:Google:ClientSecret"])
+            ? "not-configured" : builder.Configuration["Authentication:Google:ClientSecret"]!;
+        options.CallbackPath = "/signin-google";
+        options.SaveTokens = false;
+        options.Scope.Clear();
+        options.Scope.Add("openid");
+        options.Scope.Add("profile");
+        options.Scope.Add("email");
+        options.Events.OnCreatingTicket = context =>
+        {
+            if (context.User.TryGetProperty("verified_email", out var verified))
+                context.Identity?.AddClaim(new System.Security.Claims.Claim("google_email_verified", verified.ToString()));
+            return Task.CompletedTask;
+        };
+    });
 builder.Services.AddRateLimiter(options =>
 {
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
@@ -30,6 +83,7 @@ builder.Services.AddRateLimiter(options =>
 builder.Services.AddSingleton<TenantContext>();
 builder.Services.AddSingleton<SaasDatabase>();
 builder.Services.AddSingleton<StudioProvisioning>();
+builder.Services.AddSingleton<GoogleLoginService>();
 builder.Services.AddSingleton<AccountEmailSender>();
 builder.Services.AddSingleton<BillingEvents>();
 builder.Services.AddSingleton<SubscriptionBilling>();
@@ -62,6 +116,9 @@ builder.Services.AddResponseCompression(options =>
 });
 
 var app = builder.Build();
+app.Services.GetRequiredService<AccountEmailSender>().LogConfigurationStatus();
+
+app.UseForwardedHeaders();
 
 if (!app.Environment.IsDevelopment())
 {
@@ -140,6 +197,7 @@ app.Use(async (context, next) =>
 
 app.UseMiddleware<TenantResolverMiddleware>();
 app.UseRouting();
+app.UseAuthentication();
 app.UseRateLimiter();
 app.Use(async (context, next) =>
 {
@@ -197,15 +255,17 @@ app.UseStaticFiles(new StaticFileOptions
 
 InvitationEndpoints.Map(app);
 OnboardingEndpoints.Map(app);
+GoogleAuthEndpoints.Map(app);
 SaasEndpoints.Map(app);
 AuthEndpoints.Map(app);
 PublicEndpoints.Map(app);
 AdminEndpoints.Map(app);
 
-app.MapGet("/api/health", () => Results.Ok(new
+app.MapGet("/api/health", (AccountEmailSender emailSender) => Results.Ok(new
 {
     status = "ok",
     app = "StudioCore",
+    email = emailSender.IsConfigured ? "ready" : "not_configured",
     time = DateTimeOffset.UtcNow
 }));
 

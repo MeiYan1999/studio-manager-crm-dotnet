@@ -7,6 +7,16 @@ public enum SubscriptionPlan { Free, AlbumPro, ErpSolo, ErpStudio }
 public enum BillingCycle { Monthly, Yearly }
 public enum SubscriptionPaymentStatus { Pending, Paid, Cancelled, ManualReview }
 
+public sealed class GoogleIdentity
+{
+    public string GoogleSubject { get; set; } = "";
+    public string Email { get; set; } = "";
+    public string DisplayName { get; set; } = "";
+    public bool IsActive { get; set; } = true;
+    public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
+    public DateTimeOffset LastLoginAt { get; set; } = DateTimeOffset.UtcNow;
+}
+
 public sealed class Studio
 {
     public const string MasterId = "system-master";
@@ -64,10 +74,12 @@ public sealed class StudioInvitation : IMustHaveTenant
     public string TenantId { get; set; } = "";
     public string Id { get; set; } = Guid.NewGuid().ToString("N");
     public string Email { get; set; } = "";
+    public string? PendingKey { get; set; }
     public string Role { get; set; } = "employee";
     public string TokenHash { get; set; } = "";
     public DateTimeOffset ExpiresAt { get; set; }
     public DateTimeOffset? AcceptedAt { get; set; }
+    public DateTimeOffset? CancelledAt { get; set; }
 }
 
 public sealed class AccountToken : IMustHaveTenant

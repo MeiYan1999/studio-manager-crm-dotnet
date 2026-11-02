@@ -194,12 +194,17 @@ Trang **Bảng công việc** (`/admin/board`) giữ nhịp sản xuất của s
 
 ### Tài khoản studio
 
-Trang **Cài đặt studio** (`/admin/settings`) chỉ dành cho quản trị viên. Tại mục **Tài khoản studio**, quản trị viên có thể:
+Google OAuth là phương thức chính cho chủ studio và nhân viên. Tại mục **Thành Viên & Phân Quyền**, quản trị viên có thể:
 
-- tạo tài khoản mới với tên hiển thị, tên đăng nhập, vai trò và mật khẩu;
-- sửa tên hiển thị, tên đăng nhập hoặc vai trò;
-- đặt lại mật khẩu khi thành viên quên;
+- duyệt trước email Google và vai trò trong 7 ngày;
+- sửa vai trò, gia hạn hoặc hủy email đang chờ;
+- để nhân viên tự gia nhập khi đăng nhập đúng email Google, không cần SMTP hay mật khẩu;
+- cập nhật email của membership legacy trước khi liên kết; email đã liên kết Google không thể đổi tại studio;
 - tạm khoá hoặc kích hoạt lại tài khoản mà vẫn giữ lịch sử thẻ.
+
+Một danh tính Google có thể thuộc nhiều studio; trang `/workspaces` cho phép chuyển workspace. Tài khoản username/password cũ vẫn được giữ trong giai đoạn chuyển đổi và tự liên kết khi đăng nhập Google bằng đúng email đã xác minh. Chức năng reset mật khẩu của quản trị viên chỉ còn dành cho membership legacy chưa liên kết Google.
+
+Mỗi tenant chỉ có một lời mời đang chờ cho cùng một email. Tạo hoặc gia hạn lời mời luôn kiểm tra lại quota user trong transaction; chấp nhận hoặc hủy lời mời sẽ giải phóng khóa email tương ứng.
 
 Tên đăng nhập gồm 3–32 ký tự thường không dấu (`a-z`, `0-9`, dấu chấm, gạch ngang, gạch dưới). Mật khẩu dài 8–128 ký tự và được băm bằng PBKDF2-HMAC-SHA256 trước khi lưu. Mỗi người nên dùng tài khoản riêng để nhật ký thẻ ghi đúng người thao tác.
 
@@ -232,12 +237,22 @@ Cấu hình được đọc qua ASP.NET Core configuration (JSON và biến môi
 | --- | --- | --- |
 | `AdminCode` | mật khẩu phát triển mặc định | Mật khẩu bootstrap và mã đăng nhập tương thích cũ; phải đặt riêng khi triển khai |
 | `GoogleDrive:ApiKey` | rỗng | API key Google Drive |
+| `Authentication:Google:ClientId` | rỗng | OAuth Client ID của Google Web application |
+| `Authentication:Google:ClientSecret` | rỗng | OAuth Client Secret; chỉ đặt qua secret manager |
 | `Data:Directory` | `data` | Thư mục SQLite `saas.db` và nguồn import JSON cũ |
 | `ConnectionStrings:Postgres` | rỗng | Chuỗi kết nối PostgreSQL thay cho SQLite |
 | `CloudflareR2:ServiceUrl` | rỗng | S3 API endpoint của tài khoản Cloudflare R2 |
 | `CloudflareR2:BucketName` | rỗng | Tên bucket R2 riêng tư |
 | `CloudflareR2:AccessKey` | rỗng | Access key của R2 API token |
 | `CloudflareR2:SecretKey` | rỗng | Secret key của R2 API token |
+
+SMTP không còn bắt buộc cho đăng ký, xác minh danh tính, mời nhân viên hoặc khôi phục quyền truy cập. Các biến `Email__*` chỉ phục vụ endpoint email legacy trong giai đoạn chuyển đổi và có thể để trống. Endpoint `/api/health` vẫn báo trạng thái cấu hình email nhưng không trả hostname, username hoặc secret.
+
+Đăng nhập/tạo studio công khai dùng Google OAuth. Tạo OAuth Client loại **Web
+application**, thêm redirect URI chính xác `https://studiocore.io.vn/signin-google`,
+rồi đặt `Authentication__Google__ClientId` và
+`Authentication__Google__ClientSecret` trên Render. Tài khoản Google mới được cấp gói
+Free nếu không có lời mời đang chờ; bảng nâng cấp chỉ hiển thị sau khi người dùng vào khu vực quản trị. StudioCore lưu claim `sub` bất biến của Google trong danh tính nền tảng và dùng membership riêng cho từng tenant. Đăng nhập username/password chỉ còn là đường chuyển tiếp cho dữ liệu cũ.
 
 Trên Render dùng lần lượt các biến `CloudflareR2__ServiceUrl`,
 `CloudflareR2__BucketName`, `CloudflareR2__AccessKey` và `CloudflareR2__SecretKey`.
@@ -342,7 +357,7 @@ Frontend là HTML/CSS/ES module thuần, không cần Node.js hay bước build.
 
 ## Giới hạn hiện tại
 
-- Lời mời thành viên gửi qua SMTP khi đã cấu hình; chia sẻ album vẫn sao chép liên kết thủ công.
+- Lời mời nhân viên là email Google được duyệt trước; StudioCore không gửi email. Quản trị viên cần tự thông báo cho nhân viên qua kênh liên lạc của studio.
 - Chưa có tải toàn bộ album dạng ZIP; chỉ tải từng ảnh hoặc xuất CSV lựa chọn.
 - Công cụ lọc ảnh cần Chrome/Edge trên máy tính và quyền truy cập thư mục; Firefox và Safari chưa hỗ trợ File System Access API.
 - Kết quả lọc ảnh chỉ được ghi vào thư mục do người dùng chọn trên máy, không đồng bộ ngược lên album.

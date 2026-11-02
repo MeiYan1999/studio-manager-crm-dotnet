@@ -248,8 +248,9 @@ export function adminShell({ active, session, content, topbarAction = '' }) {
           </div>
         ` : ''}
         <a class="admin-nav__item" href="/admin/settings#domains">${icon('link')} Cài Đặt Tên Miền</a>
+        ${session.user?.googleManaged ? `<a class="admin-nav__item" href="${escapeAttr((session.platformOrigin || location.origin).replace(/\/$/, ''))}/workspaces">${icon('users')} Chuyển studio</a>` : ''}
         <div class="admin-sidebar__foot">
-          <a class="admin-account" href="${isAdmin ? '/admin/settings' : '/admin/change-password'}" aria-label="${isAdmin ? 'Cài đặt tài khoản studio' : 'Đổi mật khẩu'}">
+          <a class="admin-account" href="${isAdmin ? '/admin/settings' : session.user?.googleManaged ? `${escapeAttr((session.platformOrigin || location.origin).replace(/\/$/, ''))}/workspaces` : '/admin/change-password'}" aria-label="${isAdmin ? 'Cài đặt tài khoản studio' : session.user?.googleManaged ? 'Chuyển studio' : 'Đổi mật khẩu'}">
             <span class="avatar ${isAdmin ? 'avatar--ink' : 'avatar--olive'}">${escapeHtml(initials(displayName))}</span>
             <span class="admin-account__copy">
               <strong>${escapeHtml(displayName)}</strong>
@@ -257,7 +258,7 @@ export function adminShell({ active, session, content, topbarAction = '' }) {
             </span>
             ${isAdmin ? icon('chevronRight') : ''}
           </a>
-          <a class="icon-btn admin-account__logout" href="/admin/change-password" aria-label="Đổi mật khẩu" title="Đổi mật khẩu">${icon('key')}</a>
+          ${session.user?.googleManaged ? '' : `<a class="icon-btn admin-account__logout" href="/admin/change-password" aria-label="Đổi mật khẩu" title="Đổi mật khẩu">${icon('key')}</a>`}
           <button class="icon-btn admin-account__logout" type="button" data-action="logout" aria-label="Đăng xuất" title="Đăng xuất">${icon('logout')}</button>
         </div>
       </aside>
@@ -3931,7 +3932,7 @@ function renderAccounts(users, session, staff = []) {
         <h2>Tài khoản studio</h2>
         <p>${number(users.length)} tài khoản · ${number(activeCount)} đang hoạt động · ${number(adminCount)} quản trị viên.</p>
       </div>
-      <button class="btn btn--ghost btn--compact" type="button" data-action="user-create">${icon('userPlus')} Thêm tài khoản</button>
+      <span class="account-row__tag">Thêm thành viên bằng email Google ở bên dưới</span>
     </header>
     <div class="account-list">
       ${users.length
@@ -3960,8 +3961,9 @@ function accountRow(user, session, staff = []) {
           ${isCurrent ? '<span class="account-row__tag account-row__tag--you">Bạn</span>' : ''}
           ${user.isActive ? '' : '<span class="account-row__tag account-row__tag--locked">Đã tạm khoá</span>'}
           ${user.mustChangePassword ? '<span class="account-row__tag account-row__tag--locked">Cần đổi mật khẩu</span>' : ''}
+          ${user.googleManaged ? '<span class="account-row__tag account-row__tag--you">Google</span>' : '<span class="account-row__tag">Legacy</span>'}
         </p>
-        <p class="account-row__meta"><span>@${escapeHtml(user.username)}</span><span aria-hidden="true">·</span><span>${escapeHtml(lastLogin)}</span></p>
+        <p class="account-row__meta"><span>@${escapeHtml(user.username)}</span>${user.email ? `<span aria-hidden="true">·</span><span>${escapeHtml(user.email)}</span>` : ''}<span aria-hidden="true">·</span><span>${escapeHtml(lastLogin)}</span></p>
         <p class="account-row__permissions">
           <span>${icon('shield')}${escapeHtml(permissions)}</span>
           ${linkedStaff ? `<span>${icon('camera')}${escapeHtml(linkedStaff.name)}</span>` : ''}
@@ -3970,7 +3972,7 @@ function accountRow(user, session, staff = []) {
       <span class="pill ${isAdmin ? 'pill--live' : 'pill--neutral'}">${icon(isAdmin ? 'shield' : 'user')}${role}</span>
       <div class="account-row__actions">
         <button class="btn btn--ghost btn--compact" type="button" data-action="user-edit" data-user-id="${escapeAttr(user.id)}" aria-label="Sửa tài khoản ${escapeAttr(user.displayName)}">${icon('edit')} Sửa</button>
-        <button class="btn btn--ghost btn--compact" type="button" data-action="user-password" data-user-id="${escapeAttr(user.id)}" aria-label="Đặt lại mật khẩu cho ${escapeAttr(user.displayName)}">${icon('key')} Mật khẩu</button>
+        ${user.googleManaged ? '' : `<button class="btn btn--ghost btn--compact" type="button" data-action="user-password" data-user-id="${escapeAttr(user.id)}" aria-label="Đặt lại mật khẩu cho ${escapeAttr(user.displayName)}">${icon('key')} Mật khẩu</button>`}
         <button class="btn btn--ghost btn--compact ${user.isActive ? 'account-row__lock' : ''}" type="button" data-action="user-toggle" data-user-id="${escapeAttr(user.id)}" ${isCurrent ? `disabled title="Bạn không thể tự tạm khoá tài khoản đang đăng nhập"` : `aria-label="${user.isActive ? 'Tạm khoá' : 'Kích hoạt'} tài khoản ${escapeAttr(user.displayName)}"`}>${icon(user.isActive ? 'lock' : 'checkCircle')} ${user.isActive ? 'Tạm khoá' : 'Kích hoạt'}</button>
       </div>
     </article>
@@ -4048,6 +4050,11 @@ function openUserForm({ user = null, session, onSaved, staff = [] }) {
             </div>
             <p class="field__hint">3–32 ký tự: chữ thường không dấu, số, dấu chấm, gạch ngang hoặc gạch dưới.</p>
           </div>
+          ${isEdit ? `<div class="field">
+            <label for="account-email">Email Google</label>
+            <input id="account-email" name="email" type="email" maxlength="160" value="${escapeAttr(user?.email || '')}" placeholder="ten@gmail.com" autocomplete="off" ${user?.googleManaged ? 'readonly' : ''}>
+            <p class="field__hint">${user?.googleManaged ? 'Email đã được Google xác minh và không thể đổi tại studio.' : 'Dùng email Google chính xác để thành viên liên kết tài khoản legacy khi đăng nhập.'}</p>
+          </div>` : ''}
           <div class="field">
             <label for="account-role">Vai trò</label>
             <select id="account-role" name="role" ${isSelf ? 'disabled' : ''}>${roleOptions}</select>
@@ -4094,11 +4101,11 @@ function openUserForm({ user = null, session, onSaved, staff = [] }) {
           <div class="permission-grid">${permissionGroups}</div>
         </section>
 
-        <label class="check-row account-form__full">
+        ${user?.googleManaged ? '' : `<label class="check-row account-form__full">
           <input type="checkbox" name="mustChangePassword" ${user ? (user.mustChangePassword ? 'checked' : '') : 'checked'}>
           <span class="check-row__box">${icon('check')}</span>
           <span><strong>Yêu cầu đổi mật khẩu ở lần đăng nhập tới</strong><small>Nên bật khi tạo tài khoản mới hoặc đặt lại mật khẩu tạm.</small></span>
-        </label>
+        </label>`}
 
         <div data-form-error></div>
         <div class="dialog-actions">
@@ -4146,6 +4153,7 @@ async function submitUserForm(form, { session, onSaved }) {
   const submit = form.querySelector('[data-user-submit]');
   const displayNameField = form.elements.namedItem('displayName');
   const usernameField = form.elements.namedItem('username');
+  const emailField = form.elements.namedItem('email');
   const roleField = form.elements.namedItem('role');
   const activeField = form.elements.namedItem('isActive');
   const passwordField = form.elements.namedItem('password');
@@ -4157,6 +4165,7 @@ async function submitUserForm(form, { session, onSaved }) {
   const mustChangePassword = Boolean(mustChangeField?.checked);
   const displayName = displayNameField.value.trim();
   const username = usernameField.value.trim().toLowerCase();
+  const email = emailField?.value.trim().toLowerCase() || null;
 
   errorRoot.innerHTML = '';
   clearFieldErrors(form);
@@ -4193,6 +4202,7 @@ async function submitUserForm(form, { session, onSaved }) {
         body: {
           displayName,
           username,
+          email,
           role: isSelf ? null : roleField.value,
           isActive: isSelf ? null : Boolean(activeField?.checked),
           staffId,

@@ -11,7 +11,7 @@ const plans = [
   { key:'ErpSolo', name:'FREELANCER', label:'ERP SOLO', badge:'BÁN CHẠY NHẤT', features:[
     '1 tài khoản', 'Toàn bộ tính năng Album Pro', 'Quản lý Hợp đồng, CRM khách hàng', 'Sổ quỹ thu chi và công nợ'], locks:['Phân quyền 5 nhân viên · STUDIO'] },
   { key:'ErpStudio', name:'STUDIO', label:'ERP STUDIO', badge:'ĐẲNG CẤP NHẤT', features:[
-    '5 tài khoản nhân viên qua Email', 'Toàn bộ tính năng ERP Solo', 'Phân quyền Admin, Manager, Sale', 'Phân công ê-kíp & tính lương tháng'], locks:[] }
+    '5 tài khoản nhân viên qua Google', 'Toàn bộ tính năng ERP Solo', 'Phân quyền Admin, Manager, Sale', 'Phân công ê-kíp & tính lương tháng'], locks:[] }
 ];
 const money = n => new Intl.NumberFormat('vi-VN').format(n) + ' đ';
 const badge = key => ({ Free:'FREE', AlbumPro:'PRO', ErpSolo:'SOLO', ErpStudio:'STUDIO' }[key] || 'FREE');
@@ -64,7 +64,7 @@ export function mountSaasSettings(holder) {
       accountsWrap.prepend(text);
       accountsWrap.querySelector('[data-invite-panel]')?.remove();
       const invite=document.createElement('section');invite.className='saas-panel';invite.dataset.invitePanel='';
-      invite.innerHTML=`<h2>Mời nhân viên qua Email</h2>${status.currentPlan!=='ErpStudio' ? '<p>Nâng cấp ERP STUDIO để mời tối đa 5 tài khoản nhân viên.</p>' : `<form data-invite-form class="saas-inline"><label class="field">Email<input type="email" name="email" required maxlength="160"></label><label class="field">Vai trò<select name="role"><option value="employee">Nhân viên</option><option value="manager">Manager</option><option value="sale">Sale</option><option value="admin">Admin</option></select></label><button class="btn btn--primary" ${invitations.emailConfigured?'':'disabled'}>Gửi lời mời</button></form>${invitations.emailConfigured?'':'<p>Quản trị nền tảng chưa cấu hình email SMTP.</p>'}<ul>${invitations.invitations.filter(i=>!i.acceptedAt&&new Date(i.expiresAt)>new Date()).map(i=>`<li>${h(i.email)} · ${h(i.role)} <button type="button" class="btn btn--ghost" data-revoke-invite="${a(i.id)}">Thu hồi</button></li>`).join('')}</ul>`}`;
+      invite.innerHTML=`<h2>Duyệt trước nhân viên Google</h2>${status.currentPlan!=='ErpStudio' ? '<p>Nâng cấp ERP STUDIO để mời tối đa 5 tài khoản nhân viên.</p>' : `<p>Nhập đúng email Google. Khi người đó đăng nhập StudioCore, họ sẽ tự động gia nhập studio này mà không cần mật khẩu hay email mời.</p><form data-invite-form class="saas-inline"><label class="field">Email Google<input type="email" name="email" required maxlength="160"></label><label class="field">Vai trò<select name="role"><option value="employee">Nhân viên</option><option value="manager">Manager</option><option value="sale">Sale</option><option value="admin">Admin</option></select></label><button class="btn btn--primary">Duyệt email</button></form><ul>${invitations.invitations.filter(i=>!i.acceptedAt&&!i.cancelledAt).map(i=>`<li><span>${h(i.email)} · ${i.status==='expired'?'Đã hết hạn':'Chờ đăng nhập Google'}</span><select data-invite-role="${a(i.id)}" aria-label="Vai trò của ${a(i.email)}"><option value="employee" ${i.role==='employee'?'selected':''}>Nhân viên</option><option value="manager" ${i.role==='manager'?'selected':''}>Manager</option><option value="sale" ${i.role==='sale'?'selected':''}>Sale</option><option value="admin" ${i.role==='admin'?'selected':''}>Admin</option></select><button type="button" class="btn btn--ghost" data-save-invite="${a(i.id)}">${i.status==='expired'?'Gia hạn 7 ngày':'Lưu quyền'}</button><button type="button" class="btn btn--ghost" data-revoke-invite="${a(i.id)}">Hủy</button></li>`).join('')||'<li>Chưa có email nào đang chờ.</li>'}</ul>`}`;
       accountsWrap.append(invite); return;
     }
     if (active==='services') {
@@ -120,6 +120,7 @@ export function mountSaasSettings(holder) {
       else if(el.hasAttribute('data-add-service')) container.querySelector('[data-service-rows]').insertAdjacentHTML('beforeend',serviceRow());
       else if(el.hasAttribute('data-remove-service')) el.closest('.saas-service-row').remove();
       else if(el.dataset.revokeInvite) {await api('/api/saas/invitations/'+encodeURIComponent(el.dataset.revokeInvite),{method:'DELETE'});await load();}
+      else if(el.dataset.saveInvite) {const item=invitations.invitations.find(i=>i.id===el.dataset.saveInvite);const role=holder.querySelector(`[data-invite-role="${CSS.escape(el.dataset.saveInvite)}"]`)?.value;await api('/api/saas/invitations/'+encodeURIComponent(el.dataset.saveInvite),{method:'PUT',body:{role,renew:item?.status==='expired'}});showToast(item?.status==='expired'?'Đã gia hạn lời mời.':'Đã cập nhật vai trò.','success');await load();}
       else if(el.hasAttribute('data-reload-saas')) await load();
     } catch(error){el.disabled=false;showToast(error.message,'error');}
   };
@@ -128,7 +129,7 @@ export function mountSaasSettings(holder) {
     if(!form.matches('[data-location-form],[data-domains-form],[data-services-form],[data-preferences-form],[data-invite-form]'))return;
     event.preventDefault(); event.stopPropagation(); const button=form.querySelector('[type=submit]')||form.querySelector('button:not([type=button])');if(button)button.disabled=true;
     try {
-      if(form.matches('[data-invite-form]')){await api('/api/saas/invitations',{method:'POST',body:Object.fromEntries(new FormData(form))});showToast('Đã gửi lời mời qua email.','success');await load();}
+      if(form.matches('[data-invite-form]')){await api('/api/saas/invitations',{method:'POST',body:Object.fromEntries(new FormData(form))});showToast('Đã duyệt trước email Google trong 7 ngày.','success');await load();}
       else if(form.matches('[data-location-form]'))await saveLocations([...status.quickLocations,form.elements.location.value.trim()]);
       else if(form.matches('[data-domains-form]')){
         const result=await api('/api/saas/domains',{method:'PUT',body:{slug:form.elements.slug.value,customDomain:status.currentPlan==='Free'?null:form.elements.customDomain.value}});

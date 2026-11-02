@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authentication;
 using StudioCore.Models;
 using StudioCore.Persistence;
 using StudioCore.Services;
@@ -10,7 +11,7 @@ public static class AuthEndpoints
     {
         var group = app.MapGroup("/api/auth");
 
-        group.MapPost("/login", async (LoginRequest request, HttpContext context, AdminSessionStore sessions, DataStore store) =>
+        group.MapPost("/login", async (LoginRequest request, HttpContext context, AdminSessionStore sessions, DataStore store, IConfiguration configuration) =>
         {
             var username = (request.Username ?? "").Trim().ToLowerInvariant();
             var password = request.Password ?? "";
@@ -71,20 +72,21 @@ public static class AuthEndpoints
 
             sessions.SignIn(context, user, loginRevocationVersion);
             var studioName = store.Read(data => data.Settings.StudioName);
-            return Results.Ok(new SessionDto(true, studioName, ApiMappings.ToSessionUser(user)));
+            return Results.Ok(new SessionDto(true, studioName, ApiMappings.ToSessionUser(user), PlatformOrigin(context, configuration)));
         });
 
-        group.MapGet("/session", (HttpContext context, AdminSessionStore sessions, DataStore store) =>
+        group.MapGet("/session", (HttpContext context, AdminSessionStore sessions, DataStore store, IConfiguration configuration) =>
         {
             var user = sessions.GetCurrentUser(context);
             var studioName = store.Read(data => data.Settings.StudioName);
             return Results.Ok(new SessionDto(
                 user is not null,
                 studioName,
-                user is null ? null : ApiMappings.ToSessionUser(user)));
+                user is null ? null : ApiMappings.ToSessionUser(user),
+                PlatformOrigin(context, configuration)));
         });
 
-        group.MapPost("/change-password", (ChangePasswordRequest request, HttpContext context, AdminSessionStore sessions, DataStore store) =>
+        group.MapPost("/change-password", (ChangePasswordRequest request, HttpContext context, AdminSessionStore sessions, DataStore store, IConfiguration configuration) =>
         {
             var current = sessions.RequireUser(context);
             var currentPassword = request.CurrentPassword ?? "";
@@ -120,12 +122,13 @@ public static class AuthEndpoints
             sessions.RevokeUserSessions(context, updated.Id);
             sessions.SignIn(context, updated);
             var studioName = store.Read(data => data.Settings.StudioName);
-            return Results.Ok(new SessionDto(true, studioName, ApiMappings.ToSessionUser(updated)));
+            return Results.Ok(new SessionDto(true, studioName, ApiMappings.ToSessionUser(updated), PlatformOrigin(context, configuration)));
         });
 
-        group.MapPost("/logout", (HttpContext context, AdminSessionStore sessions) =>
+        group.MapPost("/logout", async (HttpContext context, AdminSessionStore sessions) =>
         {
             sessions.SignOut(context);
+            await context.SignOutAsync(GoogleAuthEndpoints.PlatformCookie);
             return Results.NoContent();
         });
 
@@ -227,6 +230,22 @@ public static class AuthEndpoints
             sessions.RevokeUserSessions(context, userId);
             return Results.Ok(new { Reset = true });
         }).RequireRateLimiting("account-lifecycle");
+    }
+
+    private static string PlatformOrigin(HttpContext context, IConfiguration configuration)
+    {
+        var configured = (configuration["Saas:PublicOrigin"] ?? "").Trim().TrimEnd('/');
+        if (Uri.TryCreate(configured, UriKind.Absolute, out var origin) &&
+            (origin.Scheme == Uri.UriSchemeHttps || origin.Scheme == Uri.UriSchemeHttp))
+        {
+            return origin.GetLeftPart(UriPartial.Authority);
+        }
+
+        var baseDomain = (configuration["Saas:BaseDomain"] ?? "").Trim().Trim('.');
+        if (!string.IsNullOrWhiteSpace(baseDomain))
+            return $"{context.Request.Scheme}://{baseDomain}";
+
+        return $"{context.Request.Scheme}://{context.Request.Host}";
     }
 
     private static string ValidateToken(string? token)

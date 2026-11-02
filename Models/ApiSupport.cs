@@ -1,6 +1,7 @@
 using System.Collections.Concurrent;
 using System.Security.Cryptography;
 using System.Text;
+using Microsoft.EntityFrameworkCore;
 using StudioCore.Services;
 using StudioCore.Persistence;
 
@@ -29,11 +30,13 @@ public sealed class AdminSessionStore
     private readonly ConcurrentDictionary<string, SessionEntry> _sessions = new(StringComparer.Ordinal);
     private readonly ConcurrentDictionary<string, long> _revocationVersions = new(StringComparer.Ordinal);
     private readonly DataStore _dataStore;
+    private readonly SaasDatabase _saasDatabase;
     private readonly byte[] _codeHash;
 
-    public AdminSessionStore(DataStore dataStore)
+    public AdminSessionStore(DataStore dataStore, SaasDatabase saasDatabase)
     {
         _dataStore = dataStore;
+        _saasDatabase = saasDatabase;
         _codeHash = Hash(dataStore.AdminCode);
     }
 
@@ -79,6 +82,7 @@ public sealed class AdminSessionStore
             string.Equals(candidate.Id, entry.UserId, StringComparison.Ordinal)));
         if (user is null ||
             !user.IsActive ||
+            !IsIdentityActive(user.GoogleSubject) ||
             entry.RevocationVersion != GetRevocationVersion(entry.TenantId, entry.UserId) ||
             !CryptographicOperations.FixedTimeEquals(entry.PasswordFingerprint, Fingerprint(user.PasswordHash)))
         {
@@ -87,6 +91,13 @@ public sealed class AdminSessionStore
         }
 
         return user;
+    }
+
+    private bool IsIdentityActive(string? subject)
+    {
+        if (string.IsNullOrWhiteSpace(subject)) return true;
+        using var db = _saasDatabase.Open(Studio.MasterId);
+        return db.GoogleIdentities.Any(identity => identity.GoogleSubject == subject && identity.IsActive);
     }
 
     public bool IsAuthenticated(HttpContext context) => GetCurrentUser(context) is not null;
@@ -98,6 +109,21 @@ public sealed class AdminSessionStore
         foreach (var entry in _sessions)
             if (entry.Value.TenantId == tenantId && entry.Value.UserId == userId)
                 _sessions.TryRemove(entry.Key, out _);
+    }
+
+    public void RevokeIdentitySessions(string googleSubject)
+    {
+        using var db = _saasDatabase.Open(Studio.MasterId);
+        var memberships = db.Set<StudioUser>().IgnoreQueryFilters()
+            .Where(user => user.GoogleSubject == googleSubject)
+            .Select(user => new { user.TenantId, user.Id }).ToArray();
+        foreach (var membership in memberships)
+        {
+            _revocationVersions.AddOrUpdate(RevocationKey(membership.TenantId, membership.Id), 1, (_, version) => version + 1);
+            foreach (var entry in _sessions)
+                if (entry.Value.TenantId == membership.TenantId && entry.Value.UserId == membership.Id)
+                    _sessions.TryRemove(entry.Key, out _);
+        }
     }
 
     public StudioUser RequireUser(HttpContext context) =>

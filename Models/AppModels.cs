@@ -91,6 +91,7 @@ public sealed class StudioSettings
 
 public sealed class StudioUser : IMustHaveTenant
 {
+    public string? GoogleSubject { get; set; }
     public string Email { get; set; } = "";
     public string TenantId { get; set; } = "";
     public string Id { get; set; } = Guid.NewGuid().ToString("N")[..12];
@@ -969,6 +970,7 @@ public sealed class CreateStudioUserRequest
 public sealed class UpdateStudioUserRequest
 {
     public string? Username { get; set; }
+    public string? Email { get; set; }
     public string? DisplayName { get; set; }
     public string? Role { get; set; }
     public bool? IsActive { get; set; }
@@ -1530,9 +1532,14 @@ public sealed record SessionUserDto(
     string DisplayName,
     string Role,
     List<string> Permissions,
-    bool MustChangePassword);
+    bool MustChangePassword,
+    bool GoogleManaged);
 
-public sealed record SessionDto(bool Authenticated, string StudioName, SessionUserDto? User);
+public sealed record SessionDto(
+    bool Authenticated,
+    string StudioName,
+    SessionUserDto? User,
+    string PlatformOrigin);
 
 public sealed record AdminSettingsDto(
     string StudioName,
@@ -1547,6 +1554,7 @@ public sealed record AdminSettingsDto(
 public sealed record StudioUserDto(
     string Id,
     string Username,
+    string Email,
     string DisplayName,
     string Role,
     bool IsActive,
@@ -1555,7 +1563,8 @@ public sealed record StudioUserDto(
     bool IsCurrent,
     List<string> Permissions,
     bool MustChangePassword,
-    string StaffId);
+    string StaffId,
+    bool GoogleManaged);
 
 public sealed record CustomerDto(
     string Id,

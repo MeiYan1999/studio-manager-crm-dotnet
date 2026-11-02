@@ -164,12 +164,14 @@ internal static class ApiMappings
             user.DisplayName,
             user.Role,
             user.Permissions ?? [],
-            user.MustChangePassword);
+            user.MustChangePassword,
+            !string.IsNullOrWhiteSpace(user.GoogleSubject));
 
     public static StudioUserDto ToStudioUser(StudioUser user, string currentUserId) =>
         new(
             user.Id,
             user.Username,
+            user.Email,
             user.DisplayName,
             user.Role,
             user.IsActive,
@@ -178,7 +180,8 @@ internal static class ApiMappings
             string.Equals(user.Id, currentUserId, StringComparison.Ordinal),
             user.Permissions ?? [],
             user.MustChangePassword,
-            user.StaffId ?? "");
+            user.StaffId ?? "",
+            !string.IsNullOrWhiteSpace(user.GoogleSubject));
 
     public static TaskBoardDto ToBoard(AppData data) =>
         ToBoard(data.Board, data.Albums, data.Staff, data.Bookings);

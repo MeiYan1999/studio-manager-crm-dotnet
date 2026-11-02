@@ -91,7 +91,7 @@ public sealed class SaasDatabase(IWebHostEnvironment environment, IConfiguration
             var studio = db.Studios.Single(s => s.Id == db.TenantId);
             var active = data.Users.Count(u => u.IsActive);
             studio.Name = data.Settings.StudioName;
-            var pending = db.Set<StudioInvitation>().AsEnumerable().Count(i => i.AcceptedAt is null && i.ExpiresAt > DateTimeOffset.UtcNow);
+            var pending = db.Set<StudioInvitation>().AsEnumerable().Count(i => i.AcceptedAt is null && i.CancelledAt is null && i.ExpiresAt > DateTimeOffset.UtcNow);
             if (active > previousActive && active + pending > Services.PlanRules.Users(Services.PlanRules.Effective(studio, DateTimeOffset.UtcNow)))
                 throw new ApiException(409, "Đã hết slot user. Vui lòng nâng cấp gói hoặc vô hiệu hóa tài khoản cũ.", "user_slots_full");
             Stamp(data, db.TenantId);

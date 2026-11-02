@@ -32,7 +32,7 @@ import { financeView, attendanceView, shiftsView, wardrobeView, notificationsVie
 import { boardView } from './board.js';
 import { photoFilterView } from './tools.js?v=20261030-photo-copy';
 import { publicAlbumView, notFoundAlbumView } from './album.js';
-import { platformView } from './platform.js';
+import { platformView, workspacePickerView } from './platform.js';
 import { websiteDesignerView } from './website-designer.js';
 
 const APP_TITLE = 'StudioCore';
@@ -42,7 +42,8 @@ window.addEventListener('may:website', event => { websiteSettings = event.detail
 const session = {
   authenticated: false,
   studioName: 'StudioCore',
-  user: null
+  user: null,
+  platformOrigin: location.origin
 };
 
 let currentView = null;
@@ -57,6 +58,7 @@ function parseRoute(pathname) {
   const path = normalizePath(localPath(pathname));
 
   if (path === '/') return { name: 'home', path };
+  if (path === '/workspaces') return { name: 'workspaces', path };
   if (path === '/admin/accept-invite') return { name:'accept-invite', path };
   if (path === '/admin/verify-email') return { name:'verify-email', path };
   if (path === '/admin/forgot-password') return { name:'forgot-password', path };
@@ -276,6 +278,7 @@ function buildView(route) {
     case 'reset-password': return resetPasswordView();
     case 'home':
       return websiteSettings.isPlatformHost ? platformView() : landingView(context);
+    case 'workspaces': return workspacePickerView();
     case 'concept-gallery':
       return conceptGalleryView({ category: route.params.category, brand: landingBrand(), studioName: websiteSettings.studioName });
     case 'login':
@@ -573,6 +576,7 @@ window.addEventListener('may:session', event => {
   session.authenticated = Boolean(next.authenticated);
   session.studioName = next.studioName || session.studioName || 'StudioCore';
   session.user = next.user || null;
+  session.platformOrigin = next.platformOrigin || session.platformOrigin || location.origin;
 });
 
 let expiredNoticeShown = false;
@@ -630,6 +634,7 @@ async function boot() {
     session.authenticated = Boolean(state?.authenticated);
     session.studioName = state?.studioName || 'StudioCore';
     session.user = state?.user || null;
+    session.platformOrigin = state?.platformOrigin || location.origin;
   } catch {
     // Public pages still work; admin routes will ask for a login.
     session.authenticated = false;
