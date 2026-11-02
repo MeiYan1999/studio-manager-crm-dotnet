@@ -75,7 +75,21 @@ public sealed class SaasDatabase(IWebHostEnvironment environment, IConfiguration
 
     public T Read<T>(Func<AppData, T> reader)
     {
-        lock (sync) { using var db = Open(); using var tx = db.Database.BeginTransaction(IsolationLevel.Serializable); return reader(Load(db)); }
+        using var db = Open();
+        using var tx = db.Database.BeginTransaction(db.Database.IsNpgsql()
+            ? IsolationLevel.RepeatableRead
+            : IsolationLevel.Serializable);
+        var result = reader(Load(db));
+        tx.Commit();
+        return result;
+    }
+
+    public T ReadMetadata<T>(Func<AppData, T> reader)
+    {
+        using var db = Open();
+        var metadata = db.Workspaces.AsNoTracking().Select(workspace => workspace.MetadataJson).SingleOrDefault()
+            ?? throw new ApiException(404, "Studio chưa được khởi tạo.", "tenant_not_found");
+        return reader(JsonSerializer.Deserialize<AppData>(metadata, json)!);
     }
     public T Write<T>(Func<AppData, T> writer)
     {

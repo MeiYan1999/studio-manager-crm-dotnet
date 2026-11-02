@@ -78,8 +78,7 @@ public sealed class AdminSessionStore
             return null;
         }
 
-        var user = _dataStore.Read(data => data.Users.FirstOrDefault(candidate =>
-            string.Equals(candidate.Id, entry.UserId, StringComparison.Ordinal)));
+        var user = FindUser(entry.TenantId, entry.UserId);
         if (user is null ||
             !user.IsActive ||
             !IsIdentityActive(user.GoogleSubject) ||
@@ -98,6 +97,12 @@ public sealed class AdminSessionStore
         if (string.IsNullOrWhiteSpace(subject)) return true;
         using var db = _saasDatabase.Open(Studio.MasterId);
         return db.GoogleIdentities.Any(identity => identity.GoogleSubject == subject && identity.IsActive);
+    }
+
+    private StudioUser? FindUser(string tenantId, string userId)
+    {
+        using var db = _saasDatabase.Open(tenantId);
+        return db.Set<StudioUser>().AsNoTracking().SingleOrDefault(user => user.Id == userId);
     }
 
     public bool IsAuthenticated(HttpContext context) => GetCurrentUser(context) is not null;
@@ -143,8 +148,7 @@ public sealed class AdminSessionStore
     {
         PruneExpired();
         var tenantId = context.RequestServices.GetRequiredService<TenantContext>().TenantId;
-        var current = _dataStore.Read(data => data.Users.FirstOrDefault(candidate =>
-            string.Equals(candidate.Id, user.Id, StringComparison.Ordinal)));
+        var current = FindUser(tenantId, user.Id);
         var version = GetRevocationVersion(tenantId, user.Id);
         if (current is null ||
             !current.IsActive ||

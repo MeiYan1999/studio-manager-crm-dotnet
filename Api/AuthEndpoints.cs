@@ -71,14 +71,14 @@ public static class AuthEndpoints
             });
 
             sessions.SignIn(context, user, loginRevocationVersion);
-            var studioName = store.Read(data => data.Settings.StudioName);
+            var studioName = store.ReadMetadata(data => data.Settings.StudioName);
             return Results.Ok(new SessionDto(true, studioName, ApiMappings.ToSessionUser(user), PlatformOrigin(context, configuration)));
         });
 
         group.MapGet("/session", (HttpContext context, AdminSessionStore sessions, DataStore store, IConfiguration configuration) =>
         {
             var user = sessions.GetCurrentUser(context);
-            var studioName = store.Read(data => data.Settings.StudioName);
+            var studioName = store.ReadMetadata(data => data.Settings.StudioName);
             return Results.Ok(new SessionDto(
                 user is not null,
                 studioName,
@@ -121,7 +121,7 @@ public static class AuthEndpoints
 
             sessions.RevokeUserSessions(context, updated.Id);
             sessions.SignIn(context, updated);
-            var studioName = store.Read(data => data.Settings.StudioName);
+            var studioName = store.ReadMetadata(data => data.Settings.StudioName);
             return Results.Ok(new SessionDto(true, studioName, ApiMappings.ToSessionUser(updated), PlatformOrigin(context, configuration)));
         });
 

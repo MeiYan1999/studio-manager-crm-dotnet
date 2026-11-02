@@ -13,7 +13,7 @@ public static class PublicEndpoints
             MonthlyPcFilterQuota = PlanRules.FilterQuota(plan),
             Features = Enum.GetValues<StudioFeature>().ToDictionary(feature => feature.ToString(), feature => plan >= PlanRules.Required(feature))
         })));
-        app.MapGet("/api/public/website", (HttpContext context, DataStore store) => Results.Ok(store.Read(data => new
+        app.MapGet("/api/public/website", (HttpContext context, DataStore store) => Results.Ok(store.ReadMetadata(data => new
         {
             IsPlatformHost = context.Items.ContainsKey("StudioCore.PlatformHost"),
             data.Settings.StudioName,

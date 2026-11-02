@@ -121,6 +121,12 @@ public sealed class DataStore
         }
     }
 
+    public T ReadMetadata<T>(Func<AppData, T> reader)
+    {
+        if (_saas is not null) return _saas.ReadMetadata(reader);
+        lock (_sync) return reader(_data);
+    }
+
     /// <summary>
     /// Reads a deep copy so callers can simulate a write (for example a dry-run
     /// import) without touching the real store or writing to disk.

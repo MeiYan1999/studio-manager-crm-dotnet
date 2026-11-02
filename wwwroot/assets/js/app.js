@@ -624,18 +624,20 @@ document.addEventListener('error', event => {
 }, true);
 
 async function boot() {
-  try {
-    websiteSettings = await api('/api/public/website');
-  } catch {
-    // Keep default copy if public settings are temporarily unavailable.
+  const [websiteResult, sessionResult] = await Promise.allSettled([
+    api('/api/public/website'),
+    authApi.session()
+  ]);
+  if (websiteResult.status === 'fulfilled') {
+    websiteSettings = websiteResult.value;
   }
-  try {
-    const state = await authApi.session();
+  if (sessionResult.status === 'fulfilled') {
+    const state = sessionResult.value;
     session.authenticated = Boolean(state?.authenticated);
     session.studioName = state?.studioName || 'StudioCore';
     session.user = state?.user || null;
     session.platformOrigin = state?.platformOrigin || location.origin;
-  } catch {
+  } else {
     // Public pages still work; admin routes will ask for a login.
     session.authenticated = false;
     session.user = null;

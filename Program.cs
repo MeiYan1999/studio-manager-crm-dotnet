@@ -223,7 +223,7 @@ app.Use(async (context, next) =>
 
 async Task ServeAppShell(HttpContext context)
 {
-    var settings = app.Services.GetRequiredService<DataStore>().Read(data => new
+    var settings = app.Services.GetRequiredService<DataStore>().ReadMetadata(data => new
     {
         Name = string.IsNullOrWhiteSpace(data.Settings.Website.LoadingName)
             ? data.Settings.Website.BrandName : data.Settings.Website.LoadingName,
@@ -252,11 +252,14 @@ app.UseStaticFiles(new StaticFileOptions
     OnPrepareResponse = context =>
     {
         var path = context.Context.Request.Path.Value ?? "";
-        if (path.EndsWith(".html", StringComparison.OrdinalIgnoreCase) ||
-            path.EndsWith(".js", StringComparison.OrdinalIgnoreCase) ||
-            path.EndsWith(".css", StringComparison.OrdinalIgnoreCase))
+        if (path.EndsWith(".html", StringComparison.OrdinalIgnoreCase))
         {
             context.Context.Response.Headers.CacheControl = "no-cache";
+        }
+        else if (path.EndsWith(".js", StringComparison.OrdinalIgnoreCase) ||
+                 path.EndsWith(".css", StringComparison.OrdinalIgnoreCase))
+        {
+            context.Context.Response.Headers.CacheControl = "public,max-age=300,stale-while-revalidate=86400";
         }
         else if (path.StartsWith("/assets/", StringComparison.OrdinalIgnoreCase))
         {
