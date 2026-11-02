@@ -208,6 +208,19 @@ app.Use(async (context, next) =>
 });
 
 app.UseMiddleware<TenantResolverMiddleware>();
+app.Use(async (context, next) =>
+{
+    // Tenant path routing rewrites /s/{slug}/api/... to /api/... inside the pipeline.
+    // Set this after tenant resolution so authenticated and tenant-scoped responses
+    // can never be stored by a browser, CDN, or intermediary proxy.
+    if (context.Request.Path.StartsWithSegments("/api"))
+    {
+        context.Response.Headers.CacheControl = "private,no-store,max-age=0";
+        context.Response.Headers.Pragma = "no-cache";
+    }
+
+    await next();
+});
 app.UseRouting();
 app.UseAuthentication();
 app.UseRateLimiter();
