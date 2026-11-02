@@ -65,8 +65,20 @@ builder.Services.AddAuthentication()
         options.Scope.Add("email");
         options.Events.OnCreatingTicket = context =>
         {
-            if (context.User.TryGetProperty("verified_email", out var verified))
-                context.Identity?.AddClaim(new System.Security.Claims.Claim("google_email_verified", verified.ToString()));
+            // Google has returned both names across its OAuth user-info and
+            // OpenID Connect payloads. Preserve one normalized claim so the
+            // callback can enforce verified email without depending on the
+            // exact upstream JSON shape.
+            if (context.User.TryGetProperty("email_verified", out var verified) ||
+                context.User.TryGetProperty("verified_email", out verified))
+            {
+                var isVerified = verified.ValueKind == System.Text.Json.JsonValueKind.True ||
+                    (verified.ValueKind == System.Text.Json.JsonValueKind.String &&
+                     bool.TryParse(verified.GetString(), out var parsed) && parsed);
+                context.Identity?.AddClaim(new System.Security.Claims.Claim(
+                    "google_email_verified",
+                    isVerified ? "true" : "false"));
+            }
             return Task.CompletedTask;
         };
     });
